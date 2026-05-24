@@ -1,54 +1,96 @@
 import sqlite3
 
-# Подключение
-conn = sqlite3.connect("database.db")
+# =========================
+# ПОДКЛЮЧЕНИЕ К БАЗЕ
+# =========================
+
+conn = sqlite3.connect(
+    "database.db",
+    check_same_thread=False
+)
+
 cursor = conn.cursor()
 
-# Создание таблицы пользователей
+# =========================
+# ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
+# =========================
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER
+    user_id INTEGER PRIMARY KEY
 )
 """)
 
-# Создание таблицы истории
+# =========================
+# ТАБЛИЦА ИСТОРИИ
+# =========================
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
-    result TEXT
+    text TEXT
 )
 """)
 
 conn.commit()
 
+# =========================
+# ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
+# =========================
 
-# Добавление пользователя
 def add_user(user_id):
+
     cursor.execute(
-        "INSERT INTO users (user_id) VALUES (?)",
+        "INSERT OR IGNORE INTO users (user_id) VALUES (?)",
         (user_id,)
     )
 
     conn.commit()
 
+# =========================
+# СОХРАНЕНИЕ ИСТОРИИ
+# =========================
 
-# Сохранение истории
-def save_history(user_id, result):
+def save_history(user_id, text):
+
     cursor.execute(
-        "INSERT INTO history (user_id, result) VALUES (?, ?)",
-        (user_id, result)
+        "INSERT INTO history (user_id, text) VALUES (?, ?)",
+        (user_id, text)
     )
 
     conn.commit()
 
+# =========================
+# ПОЛУЧЕНИЕ ИСТОРИИ
+# =========================
 
-# Получение истории
 def get_history(user_id):
+
     cursor.execute(
-        "SELECT result FROM history WHERE user_id = ? ORDER BY ROWID DESC LIMIT 5",
+        """
+        SELECT text
+        FROM history
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT 10
+        """,
         (user_id,)
     )
 
     rows = cursor.fetchall()
 
     return [row[0] for row in rows]
+
+# =========================
+# ОЧИСТКА ИСТОРИИ
+# =========================
+
+def clear_history(user_id):
+
+    cursor.execute(
+        "DELETE FROM history WHERE user_id = ?",
+        (user_id,)
+    )
+
+    conn.commit()

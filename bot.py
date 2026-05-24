@@ -15,7 +15,12 @@ from aiogram.types import (
     InlineKeyboardButton
 )
 
-from database import add_user, save_history, get_history
+from database import (
+    add_user,
+    save_history,
+    get_history,
+    clear_history
+)
 
 # =========================
 # ЗАГРУЗКА ТОКЕНА
@@ -56,14 +61,14 @@ keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
 
 # =========================
-# ФУНКЦИЯ ПОЛУЧЕНИЯ КУРСА
+# ПОЛУЧЕНИЕ КУРСА
 # =========================
 
 def get_rate(from_currency, to_currency):
 
     pair = f"{from_currency}_{to_currency}"
 
-    # Если есть в кэше — используем
+    # Кэш
     if pair in cached_rates:
         return cached_rates[pair]
 
@@ -78,7 +83,6 @@ def get_rate(from_currency, to_currency):
 
     rate = data["rates"][to_currency]
 
-    # Сохраняем в кэш
     cached_rates[pair] = rate
 
     return rate
@@ -124,9 +128,10 @@ async def update_rates():
             print("✅ Курсы обновлены\n")
 
         except Exception as e:
+
             print("❌ Ошибка обновления:", e)
 
-        # Обновление каждые 5 минут
+        # Каждые 5 минут
         await asyncio.sleep(300)
 
 # =========================
@@ -229,18 +234,41 @@ async def help_button(message: types.Message):
 )
 async def history(message: types.Message):
 
-    history_data = get_history(message.from_user.id)
+    history_data = get_history(
+        message.from_user.id
+    )
 
     if not history_data:
-        await message.answer("📭 История пуста.")
+
+        await message.answer(
+            "📭 История пуста."
+        )
+
         return
 
     text = "📜 Последние конвертации:\n\n"
 
     for item in history_data:
-        text += f"{item}\n"
 
-    await message.answer(text)
+        text += f"• {item}\n\n"
+
+    # =========================
+    # INLINE-КНОПКА
+    # =========================
+
+    inline_kb = InlineKeyboardMarkup()
+
+    btn_clear = InlineKeyboardButton(
+        "🗑 Очистить историю",
+        callback_data="clear_history"
+    )
+
+    inline_kb.add(btn_clear)
+
+    await message.answer(
+        text,
+        reply_markup=inline_kb
+    )
 
 # =========================
 # КОНВЕРТАЦИЯ
@@ -456,14 +484,14 @@ async def show_graph(
         min_rate = min(rates)
         max_rate = max(rates)
 
-        # Цвет тренда
+        # Цвет
         color = "green"
 
         if change_percent < 0:
             color = "red"
 
         # =========================
-        # КРАСИВЫЙ ГРАФИК
+        # ГРАФИК
         # =========================
 
         plt.figure(figsize=(10, 5))
@@ -493,7 +521,10 @@ async def show_graph(
 
         plt.grid(True)
 
-        # Сохранение
+        # =========================
+        # СОХРАНЕНИЕ
+        # =========================
+
         filename = (
             f"{from_currency}_{to_currency}.png"
         )
@@ -519,7 +550,10 @@ async def show_graph(
             f"💰 Текущий курс: {last_rate:.4f}"
         )
 
-        # Отправка
+        # =========================
+        # ОТПРАВКА
+        # =========================
+
         with open(filename, "rb") as photo:
 
             await bot.send_photo(
@@ -536,6 +570,37 @@ async def show_graph(
 
         await callback.answer(
             "❌ Ошибка графика"
+        )
+
+# =========================
+# ОЧИСТКА ИСТОРИИ
+# =========================
+
+@dp.callback_query_handler(
+    lambda c: c.data == "clear_history"
+)
+async def clear_history_callback(
+    callback: types.CallbackQuery
+):
+
+    try:
+
+        clear_history(
+            callback.from_user.id
+        )
+
+        await callback.message.edit_text(
+            "🗑 История очищена."
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+
+        print(e)
+
+        await callback.answer(
+            "❌ Ошибка"
         )
 
 # =========================
