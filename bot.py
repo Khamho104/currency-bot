@@ -156,7 +156,7 @@ def get_rate(
     return rate
 
 # =========================
-# АВТООБНОВЛЕНИЕ
+# АВТООБНОВЛЕНИЕ КУРСОВ
 # =========================
 
 async def update_rates():
@@ -278,7 +278,7 @@ async def help_button(
     await help_command(message)
 
 # =========================
-# КОНВЕРТАЦИЯ
+# КНОПКА КОНВЕРТАЦИЯ
 # =========================
 
 @dp.message_handler(
@@ -323,12 +323,9 @@ async def rates_button(
 
         text = (
             "📈 Курсы валют:\n\n"
-            f"🇺🇸 USD/RUB: "
-            f"{usd_rub:.2f}\n"
-            f"🇺🇸 USD/EUR: "
-            f"{usd_eur:.4f}\n"
-            f"🇪🇺 EUR/RUB: "
-            f"{eur_rub:.2f}"
+            f"🇺🇸 USD/RUB: {usd_rub:.2f}\n"
+            f"🇺🇸 USD/EUR: {usd_eur:.4f}\n"
+            f"🇪🇺 EUR/RUB: {eur_rub:.2f}"
         )
 
         await message.answer(text)
@@ -372,8 +369,7 @@ async def history(
             return
 
         text = (
-            "📜 Последние "
-            "конвертации:\n\n"
+            "📜 Последние конвертации:\n\n"
         )
 
         for item in history_data:
@@ -439,11 +435,9 @@ async def quick_rates(
         )
 
         text = (
-            f"⚡ {from_currency}/"
-            f"{to_currency}\n\n"
+            f"⚡ {from_currency}/{to_currency}\n\n"
             f"📈 1 {from_currency} = "
-            f"{rate:.4f} "
-            f"{to_currency}"
+            f"{rate:.4f} {to_currency}"
         )
 
         inline_kb = (
@@ -493,7 +487,7 @@ async def quick_rates(
         )
 
 # =========================
-# КОНВЕРТАЦИЯ ВАЛЮТ
+# КОНВЕРТАЦИЯ
 # =========================
 
 @dp.message_handler()
@@ -541,10 +535,6 @@ async def convert_currency(
             f"{to_currency}"
         )
 
-        # =========================
-        # СОХРАНЕНИЕ ИСТОРИИ
-        # =========================
-
         history_text = (
             f"{amount:.2f} "
             f"{from_currency} → "
@@ -552,39 +542,17 @@ async def convert_currency(
             f"{to_currency}"
         )
 
-        print(
-            "Сохраняем:",
+        save_history(
+            message.from_user.id,
             history_text
         )
 
-        try:
-
-            save_history(
-                message.from_user.id,
-                history_text
+        print(
+            "После сохранения:",
+            get_history(
+                message.from_user.id
             )
-
-            print(
-                "История сохранена"
-            )
-
-            print(
-                "После сохранения:",
-                get_history(
-                    message.from_user.id
-                )
-            )
-
-        except Exception as history_error:
-
-            print(
-                "Ошибка истории:",
-                history_error
-            )
-
-        # =========================
-        # INLINE-КНОПКИ
-        # =========================
+        )
 
         inline_kb = (
             InlineKeyboardMarkup(
@@ -652,7 +620,7 @@ async def convert_currency(
         )
 
 # =========================
-# КНОПКА КУРС
+# INLINE: КУРС
 # =========================
 
 @dp.callback_query_handler(
@@ -697,7 +665,7 @@ async def show_rate(
         )
 
 # =========================
-# REVERSE
+# INLINE: REVERSE
 # =========================
 
 @dp.callback_query_handler(
@@ -747,7 +715,7 @@ async def reverse_currency(
         )
 
 # =========================
-# ГРАФИК
+# INLINE: ГРАФИК
 # =========================
 
 @dp.callback_query_handler(
@@ -792,9 +760,7 @@ async def show_graph(
             dates.append(date)
             rates.append(fake_rate)
 
-        plt.figure(
-            figsize=(10, 5)
-        )
+        plt.figure(figsize=(10, 5))
 
         plt.plot(
             dates,
@@ -804,8 +770,7 @@ async def show_graph(
         )
 
         plt.title(
-            f"{from_currency}/"
-            f"{to_currency}"
+            f"{from_currency}/{to_currency}"
         )
 
         plt.xlabel("Дата")
@@ -886,10 +851,14 @@ async def clear_history_callback(
         )
 
 # =========================
-# ЗАПУСК
+# STARTUP
 # =========================
 
 async def on_startup(dp):
+
+    await bot.delete_webhook(
+        drop_pending_updates=True
+    )
 
     asyncio.create_task(
         update_rates()
@@ -897,13 +866,11 @@ async def on_startup(dp):
 
     print("🤖 Бот запущен")
 
-if __name__ == "__main__":
+# =========================
+# ЗАПУСК
+# =========================
 
-    asyncio.run(
-        bot.delete_webhook(
-            drop_pending_updates=True
-        )
-    )
+if __name__ == "__main__":
 
     executor.start_polling(
         dp,
