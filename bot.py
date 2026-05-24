@@ -58,7 +58,12 @@ async def help_command(message: types.Message):
 
 
 # Кнопка Конвертация
-@dp.message_handler(lambda message: message.text == "💱 Конвертация")
+@dp.message_handler(
+    lambda message: message.text in [
+        "Конвертация",
+        "💱 Конвертация"
+    ]
+)
 async def convert_button(message: types.Message):
     await message.answer(
         "💱 Введите данные:\n\n"
@@ -67,7 +72,12 @@ async def convert_button(message: types.Message):
 
 
 # Кнопка Курс валют
-@dp.message_handler(lambda message: message.text == "📈 Курс валют")
+@dp.message_handler(
+    lambda message: message.text in [
+        "Курс валют",
+        "📈 Курс валют"
+    ]
+)
 async def rates_button(message: types.Message):
     await message.answer(
         "📈 Популярные валюты:\n\n"
@@ -81,7 +91,12 @@ async def rates_button(message: types.Message):
 
 
 # Кнопка Помощь
-@dp.message_handler(lambda message: message.text == "ℹ️ Помощь")
+@dp.message_handler(
+    lambda message: message.text in [
+        "Помощь",
+        "ℹ️ Помощь"
+    ]
+)
 async def help_button(message: types.Message):
     await message.answer(
         "ℹ️ Пример использования:\n\n"
@@ -90,7 +105,12 @@ async def help_button(message: types.Message):
 
 
 # История
-@dp.message_handler(lambda message: message.text == "📜 История")
+@dp.message_handler(
+    lambda message: message.text in [
+        "История",
+        "📜 История"
+    ]
+)
 async def history(message: types.Message):
     history_data = get_history(message.from_user.id)
 
@@ -157,7 +177,7 @@ async def convert_currency(message: types.Message):
         )
 
 
-# Запуск
+# Запуск бота
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
     executor.start_polling(dp, skip_updates=True)
