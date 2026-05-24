@@ -1,28 +1,28 @@
 import sqlite3
 
 # =========================
-# БАЗА ДАННЫХ
+# ПОДКЛЮЧЕНИЕ
 # =========================
 
-conn = sqlite3.connect(
-    "database.db"
-)
+def connect_db():
+
+    return sqlite3.connect(
+        "database.db"
+    )
+
+# =========================
+# СОЗДАНИЕ ТАБЛИЦ
+# =========================
+
+conn = connect_db()
 
 cursor = conn.cursor()
-
-# =========================
-# ТАБЛИЦА USERS
-# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER
 )
 """)
-
-# =========================
-# ТАБЛИЦА HISTORY
-# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS history (
@@ -33,11 +33,17 @@ CREATE TABLE IF NOT EXISTS history (
 
 conn.commit()
 
+conn.close()
+
 # =========================
 # ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ
 # =========================
 
 def add_user(user_id):
+
+    conn = connect_db()
+
+    cursor = conn.cursor()
 
     cursor.execute(
         "INSERT INTO users VALUES (?)",
@@ -46,11 +52,17 @@ def add_user(user_id):
 
     conn.commit()
 
+    conn.close()
+
 # =========================
 # СОХРАНИТЬ ИСТОРИЮ
 # =========================
 
 def save_history(user_id, text):
+
+    conn = connect_db()
+
+    cursor = conn.cursor()
 
     cursor.execute(
         "INSERT INTO history VALUES (?, ?)",
@@ -59,11 +71,17 @@ def save_history(user_id, text):
 
     conn.commit()
 
+    conn.close()
+
 # =========================
 # ПОЛУЧИТЬ ИСТОРИЮ
 # =========================
 
 def get_history(user_id):
+
+    conn = connect_db()
+
+    cursor = conn.cursor()
 
     cursor.execute(
         """
@@ -78,6 +96,8 @@ def get_history(user_id):
 
     rows = cursor.fetchall()
 
+    conn.close()
+
     return [row[0] for row in rows]
 
 # =========================
@@ -85,6 +105,10 @@ def get_history(user_id):
 # =========================
 
 def clear_history(user_id):
+
+    conn = connect_db()
+
+    cursor = conn.cursor()
 
     cursor.execute(
         """
@@ -95,3 +119,5 @@ def clear_history(user_id):
     )
 
     conn.commit()
+
+    conn.close()
