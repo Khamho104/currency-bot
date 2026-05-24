@@ -104,13 +104,10 @@ async def history(message: types.Message):
 
 
 # Конвертация валют
-@dp.message_handler()
+@dp.message_handler(lambda message: len(message.text.split()) == 3)
 async def convert_currency(message: types.Message):
     try:
         data = message.text.strip().split()
-
-        if len(data) != 3:
-            raise ValueError
 
         amount = float(data[0])
         from_currency = data[1].upper()
@@ -118,22 +115,24 @@ async def convert_currency(message: types.Message):
 
         url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
 
-        response = requests.get(url).json()
+        response = requests.get(url)
 
-        if "rates" not in response:
+        data_json = response.json()
+
+        if "rates" not in data_json:
             await message.answer("❌ Неверная валюта.")
             return
 
-        rate = response["rates"].get(to_currency)
-
-        if rate is None:
+        if to_currency not in data_json["rates"]:
             await message.answer("❌ Валюта не найдена.")
             return
+
+        rate = data_json["rates"][to_currency]
 
         result = amount * rate
 
         result_text = (
-            f"💱 {amount} {from_currency} = "
+            f"💱 {amount:.2f} {from_currency} = "
             f"{result:.2f} {to_currency}"
         )
 
@@ -141,15 +140,11 @@ async def convert_currency(message: types.Message):
 
         await message.answer(result_text)
 
-    except:
+    except Exception as e:
+        print(e)
+
         await message.answer(
             "❌ Ошибка.\n\n"
             "Введите данные в формате:\n"
             "100 USD EUR"
         )
-
-
-# Запуск
-if __name__ == "__main__":
-    print("Бот запущен...")
-    executor.start_polling(dp, skip_updates=True)
