@@ -7,50 +7,54 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from database import add_user, save_history, get_history
 
-# Загрузка .env
+# Загрузка переменных
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Запуск бота
+# Проверка токена
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не найден!")
+
+# Инициализация бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-# Кнопки
+# Клавиатура
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 
-btn_convert = KeyboardButton("Конвертация")
-btn_rates = KeyboardButton("Курс валют")
-btn_help = KeyboardButton("Помощь")
-btn_history = KeyboardButton("История")
+keyboard.add(
+    KeyboardButton("Конвертация"),
+    KeyboardButton("Курс валют")
+)
 
-keyboard.add(btn_convert, btn_rates)
-keyboard.add(btn_help, btn_history)
+keyboard.add(
+    KeyboardButton("Помощь"),
+    KeyboardButton("История")
+)
 
 
-# Команда /start
+# START
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     add_user(message.from_user.id)
 
     await message.answer(
         "👋 Добро пожаловать в Currency Converter Bot!\n\n"
-        "Введите сумму и валюты:\n"
-        "Например:\n"
+        "Введите данные в формате:\n"
         "100 USD EUR",
         reply_markup=keyboard
     )
 
 
-# Команда /help
+# HELP
 @dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
     await message.answer(
-        "📌 Доступные команды:\n\n"
-        "/start — запуск бота\n"
-        "/help — помощь\n\n"
-        "Для конвертации используйте формат:\n"
-        "100 USD EUR"
+        "ℹ️ Использование:\n\n"
+        "100 USD EUR\n\n"
+        "Пример:\n"
+        "250 USD EUR"
     )
 
 
@@ -58,7 +62,7 @@ async def help_command(message: types.Message):
 @dp.message_handler(lambda message: message.text == "Конвертация")
 async def convert_button(message: types.Message):
     await message.answer(
-        "💱 Введите данные в формате:\n"
+        "💱 Введите данные:\n"
         "100 USD EUR"
     )
 
@@ -71,9 +75,8 @@ async def rates_button(message: types.Message):
         "USD — Доллар США\n"
         "EUR — Евро\n"
         "RUB — Российский рубль\n"
-        "GBP — Фунт стерлингов\n"
-        "JPY — Японская йена\n"
-        "KZT — Казахстанский тенге"
+        "GBP — Фунт\n"
+        "JPY — Йена"
     )
 
 
@@ -81,7 +84,7 @@ async def rates_button(message: types.Message):
 @dp.message_handler(lambda message: message.text == "Помощь")
 async def help_button(message: types.Message):
     await message.answer(
-        "ℹ️ Пример использования:\n\n"
+        "ℹ️ Пример:\n\n"
         "100 USD EUR"
     )
 
@@ -103,31 +106,35 @@ async def history(message: types.Message):
     await message.answer(text)
 
 
-# Конвертация валют
-@dp.message_handler(lambda message: len(message.text.split()) == 3)
+# Конвертация
+@dp.message_handler()
 async def convert_currency(message: types.Message):
     try:
-        data = message.text.strip().split()
+        parts = message.text.strip().split()
 
-        amount = float(data[0])
-        from_currency = data[1].upper()
-        to_currency = data[2].upper()
+        if len(parts) != 3:
+            raise ValueError
+
+        amount = float(parts[0])
+
+        from_currency = parts[1].upper()
+        to_currency = parts[2].upper()
 
         url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
 
         response = requests.get(url)
 
-        data_json = response.json()
+        data = response.json()
 
-        if "rates" not in data_json:
+        if "rates" not in data:
             await message.answer("❌ Неверная валюта.")
             return
 
-        if to_currency not in data_json["rates"]:
+        if to_currency not in data["rates"]:
             await message.answer("❌ Валюта не найдена.")
             return
 
-        rate = data_json["rates"][to_currency]
+        rate = data["rates"][to_currency]
 
         result = amount * rate
 
@@ -148,3 +155,9 @@ async def convert_currency(message: types.Message):
             "Введите данные в формате:\n"
             "100 USD EUR"
         )
+
+
+# Запуск
+if __name__ == "__main__":
+    print("Бот запущен...")
+    executor.start_polling(dp, skip_updates=True)
