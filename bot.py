@@ -91,21 +91,27 @@ def get_rate(from_currency, to_currency):
         return cached_rates[pair]
 
     url = (
-        f"https://api.frankfurter.app/latest"
-        f"?from={from_currency}&to={to_currency}"
+        "https://api.exchangerate.host/convert"
+        f"?from={from_currency}"
+        f"&to={to_currency}"
+        "&amount=1"
     )
 
     response = requests.get(url)
 
     data = response.json()
 
-    if "rates" not in data:
+    # =========================
+    # ПРОВЕРКА API
+    # =========================
+
+    if "result" not in data:
+
+        print("Ошибка API:", data)
+
         raise ValueError("Ошибка API")
 
-    if to_currency not in data["rates"]:
-        raise ValueError("Валюта не найдена")
-
-    rate = data["rates"][to_currency]
+    rate = data["result"]
 
     cached_rates[pair] = rate
 
@@ -134,19 +140,10 @@ async def update_rates():
 
                 pair = f"{from_currency}_{to_currency}"
 
-                url = (
-                    f"https://api.frankfurter.app/latest"
-                    f"?from={from_currency}&to={to_currency}"
+                rate = get_rate(
+                    from_currency,
+                    to_currency
                 )
-
-                response = requests.get(url)
-
-                data = response.json()
-
-                if "rates" not in data:
-                    continue
-
-                rate = data["rates"][to_currency]
 
                 cached_rates[pair] = rate
 
@@ -158,6 +155,7 @@ async def update_rates():
 
             print("❌ Ошибка обновления:", e)
 
+        # каждые 5 минут
         await asyncio.sleep(300)
 
 # =========================
@@ -216,32 +214,9 @@ async def rates_button(message: types.Message):
 
     try:
 
-        # USD -> RUB
-        usd_rub_response = requests.get(
-            "https://api.frankfurter.app/latest?from=USD&to=RUB"
-        )
-
-        usd_rub_data = usd_rub_response.json()
-
-        usd_rub = usd_rub_data["rates"]["RUB"]
-
-        # USD -> EUR
-        usd_eur_response = requests.get(
-            "https://api.frankfurter.app/latest?from=USD&to=EUR"
-        )
-
-        usd_eur_data = usd_eur_response.json()
-
-        usd_eur = usd_eur_data["rates"]["EUR"]
-
-        # EUR -> RUB
-        eur_rub_response = requests.get(
-            "https://api.frankfurter.app/latest?from=EUR&to=RUB"
-        )
-
-        eur_rub_data = eur_rub_response.json()
-
-        eur_rub = eur_rub_data["rates"]["RUB"]
+        usd_rub = get_rate("USD", "RUB")
+        usd_eur = get_rate("USD", "EUR")
+        eur_rub = get_rate("EUR", "RUB")
 
         text = (
             f"📈 Актуальные курсы:\n\n"
