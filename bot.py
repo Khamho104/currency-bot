@@ -3,7 +3,12 @@ import requests
 from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import (
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 
 from database import add_user, save_history, get_history
 
@@ -20,7 +25,10 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-# Клавиатура
+# =========================
+# КЛАВИАТУРА
+# =========================
+
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 
 btn_convert = KeyboardButton("💱 Конвертация")
@@ -31,8 +39,10 @@ btn_history = KeyboardButton("📜 История")
 keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
 
+# =========================
+# START
+# =========================
 
-# /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     add_user(message.from_user.id)
@@ -44,8 +54,10 @@ async def start(message: types.Message):
         reply_markup=keyboard
     )
 
+# =========================
+# HELP
+# =========================
 
-# /help
 @dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
     await message.answer(
@@ -56,8 +68,10 @@ async def help_command(message: types.Message):
         "100 USD EUR"
     )
 
+# =========================
+# КНОПКА КОНВЕРТАЦИЯ
+# =========================
 
-# Кнопка Конвертация
 @dp.message_handler(
     lambda message: message.text in [
         "Конвертация",
@@ -70,8 +84,10 @@ async def convert_button(message: types.Message):
         "100 USD EUR"
     )
 
+# =========================
+# КНОПКА КУРС ВАЛЮТ
+# =========================
 
-# Кнопка Курс валют
 @dp.message_handler(
     lambda message: message.text in [
         "Курс валют",
@@ -89,8 +105,10 @@ async def rates_button(message: types.Message):
         "🇰🇿 KZT — Тенге"
     )
 
+# =========================
+# КНОПКА ПОМОЩЬ
+# =========================
 
-# Кнопка Помощь
 @dp.message_handler(
     lambda message: message.text in [
         "Помощь",
@@ -103,8 +121,10 @@ async def help_button(message: types.Message):
         "100 USD EUR"
     )
 
+# =========================
+# ИСТОРИЯ
+# =========================
 
-# История
 @dp.message_handler(
     lambda message: message.text in [
         "История",
@@ -125,8 +145,10 @@ async def history(message: types.Message):
 
     await message.answer(text)
 
+# =========================
+# КОНВЕРТАЦИЯ
+# =========================
 
-# Конвертация валют
 @dp.message_handler()
 async def convert_currency(message: types.Message):
     try:
@@ -165,7 +187,25 @@ async def convert_currency(message: types.Message):
 
         save_history(message.from_user.id, result_text)
 
-        await message.answer(result_text)
+        # INLINE КНОПКИ
+        inline_kb = InlineKeyboardMarkup(row_width=2)
+
+        btn_reverse = InlineKeyboardButton(
+            "🔄 Поменять валюты",
+            callback_data=f"reverse_{amount}_{to_currency}_{from_currency}"
+        )
+
+        btn_rate = InlineKeyboardButton(
+            "📈 Курс",
+            callback_data=f"rate_{from_currency}_{to_currency}"
+        )
+
+        inline_kb.add(btn_reverse, btn_rate)
+
+        await message.answer(
+            result_text,
+            reply_markup=inline_kb
+        )
 
     except Exception as e:
         print(e)
@@ -176,8 +216,69 @@ async def convert_currency(message: types.Message):
             "100 USD EUR"
         )
 
+# =========================
+# REVERSE КНОПКА
+# =========================
 
-# Запуск бота
+@dp.callback_query_handler(lambda c: c.data.startswith("reverse_"))
+async def reverse_currency(callback: types.CallbackQuery):
+    try:
+        _, amount, from_currency, to_currency = callback.data.split("_")
+
+        amount = float(amount)
+
+        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+
+        response = requests.get(url)
+
+        data = response.json()
+
+        rate = data["rates"][to_currency]
+
+        result = amount * rate
+
+        await callback.message.answer(
+            f"🔄 {amount:.2f} {from_currency} = "
+            f"{result:.2f} {to_currency}"
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        print(e)
+        await callback.answer("❌ Ошибка")
+
+# =========================
+# КНОПКА КУРС
+# =========================
+
+@dp.callback_query_handler(lambda c: c.data.startswith("rate_"))
+async def show_rate(callback: types.CallbackQuery):
+    try:
+        _, from_currency, to_currency = callback.data.split("_")
+
+        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+
+        response = requests.get(url)
+
+        data = response.json()
+
+        rate = data["rates"][to_currency]
+
+        await callback.message.answer(
+            f"📈 1 {from_currency} = {rate:.2f} {to_currency}"
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+        print(e)
+        await callback.answer("❌ Ошибка")
+
+# =========================
+# ЗАПУСК БОТА
+# =========================
+
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
     executor.start_polling(dp, skip_updates=True)
