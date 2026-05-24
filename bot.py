@@ -158,10 +158,6 @@ async def update_rates():
 
             print("❌ Ошибка обновления:", e)
 
-        # =========================
-        # КАЖДЫЕ 5 МИНУТ
-        # =========================
-
         await asyncio.sleep(300)
 
 # =========================
@@ -220,9 +216,32 @@ async def rates_button(message: types.Message):
 
     try:
 
-        usd_rub = get_rate("USD", "RUB")
-        usd_eur = get_rate("USD", "EUR")
-        eur_rub = get_rate("EUR", "RUB")
+        # USD -> RUB
+        usd_rub_response = requests.get(
+            "https://api.frankfurter.app/latest?from=USD&to=RUB"
+        )
+
+        usd_rub_data = usd_rub_response.json()
+
+        usd_rub = usd_rub_data["rates"]["RUB"]
+
+        # USD -> EUR
+        usd_eur_response = requests.get(
+            "https://api.frankfurter.app/latest?from=USD&to=EUR"
+        )
+
+        usd_eur_data = usd_eur_response.json()
+
+        usd_eur = usd_eur_data["rates"]["EUR"]
+
+        # EUR -> RUB
+        eur_rub_response = requests.get(
+            "https://api.frankfurter.app/latest?from=EUR&to=RUB"
+        )
+
+        eur_rub_data = eur_rub_response.json()
+
+        eur_rub = eur_rub_data["rates"]["RUB"]
 
         text = (
             f"📈 Актуальные курсы:\n\n"
@@ -238,7 +257,7 @@ async def rates_button(message: types.Message):
         print("Ошибка курса:", e)
 
         await message.answer(
-            "❌ Не удалось получить курсы"
+            "❌ Ошибка загрузки курсов"
         )
 
 # =========================
@@ -334,8 +353,6 @@ async def history(message: types.Message):
             message.from_user.id
         )
 
-        print("История:", history_data)
-
         if not history_data:
 
             await message.answer(
@@ -406,16 +423,10 @@ async def convert_currency(message: types.Message):
             f"{rate:.4f} {to_currency}"
         )
 
-        # =========================
-        # СОХРАНЕНИЕ ИСТОРИИ
-        # =========================
-
         save_history(
             message.from_user.id,
             result_text
         )
-
-        print("История сохранена")
 
         inline_kb = InlineKeyboardMarkup(row_width=2)
 
@@ -575,11 +586,7 @@ async def show_graph(
             rates.append(rate)
 
         if not rates:
-
-            await callback.answer(
-                "❌ Нет данных"
-            )
-
+            await callback.answer("❌ Нет данных")
             return
 
         first_rate = rates[0]
@@ -695,9 +702,7 @@ async def clear_history_callback(
 
         print("Ошибка очистки:", e)
 
-        await callback.answer(
-            "❌ Ошибка"
-        )
+        await callback.answer("❌ Ошибка")
 
 # =========================
 # ЗАПУСК БОТА
