@@ -83,36 +83,38 @@ def get_rate(from_currency, to_currency):
 
     pair = f"{from_currency}_{to_currency}"
 
-    # =========================
     # КЭШ
-    # =========================
-
     if pair in cached_rates:
         return cached_rates[pair]
 
+    # API
     url = (
-        "https://api.exchangerate.host/convert"
-        f"?from={from_currency}"
-        f"&to={to_currency}"
-        "&amount=1"
+        f"https://open.er-api.com/v6/latest/"
+        f"{from_currency}"
     )
 
     response = requests.get(url)
 
     data = response.json()
 
-    # =========================
-    # ПРОВЕРКА API
-    # =========================
-
-    if "result" not in data:
+    # ПРОВЕРКА
+    if data["result"] != "success":
 
         print("Ошибка API:", data)
 
         raise ValueError("Ошибка API")
 
-    rate = data["result"]
+    rates = data["rates"]
 
+    if to_currency not in rates:
+
+        raise ValueError(
+            "Валюта не найдена"
+        )
+
+    rate = rates[to_currency]
+
+    # СОХРАНЯЕМ В КЭШ
     cached_rates[pair] = rate
 
     return rate
@@ -155,7 +157,6 @@ async def update_rates():
 
             print("❌ Ошибка обновления:", e)
 
-        # каждые 5 минут
         await asyncio.sleep(300)
 
 # =========================
@@ -509,146 +510,6 @@ async def show_rate(
         print("Ошибка rate:", e)
 
         await callback.answer("❌ Ошибка")
-
-# =========================
-# ГРАФИК
-# =========================
-
-@dp.callback_query_handler(
-    lambda c: c.data.startswith("graph_")
-)
-async def show_graph(
-    callback: types.CallbackQuery
-):
-
-    try:
-
-        _, from_currency, to_currency = (
-            callback.data.split("_")
-        )
-
-        dates = []
-        rates = []
-
-        for i in range(7):
-
-            date = (
-                datetime.now()
-                - timedelta(days=6 - i)
-            ).strftime("%Y-%m-%d")
-
-            url = (
-                f"https://api.frankfurter.app/{date}"
-                f"?from={from_currency}&to={to_currency}"
-            )
-
-            response = requests.get(url)
-
-            data = response.json()
-
-            if "rates" not in data:
-                continue
-
-            rate = data["rates"][to_currency]
-
-            dates.append(
-                datetime.strptime(
-                    date,
-                    "%Y-%m-%d"
-                ).strftime("%d.%m")
-            )
-
-            rates.append(rate)
-
-        if not rates:
-            await callback.answer("❌ Нет данных")
-            return
-
-        first_rate = rates[0]
-        last_rate = rates[-1]
-
-        change_percent = (
-            (last_rate - first_rate)
-            / first_rate
-        ) * 100
-
-        min_rate = min(rates)
-        max_rate = max(rates)
-
-        color = "green"
-
-        if change_percent < 0:
-            color = "red"
-
-        plt.figure(figsize=(10, 5))
-
-        plt.plot(
-            dates,
-            rates,
-            marker="o",
-            linewidth=3,
-            color=color
-        )
-
-        plt.fill_between(
-            dates,
-            rates,
-            alpha=0.2,
-            color=color
-        )
-
-        plt.title(
-            f"{from_currency}/{to_currency} — 7 дней",
-            fontsize=16
-        )
-
-        plt.xlabel("Дата")
-        plt.ylabel("Курс")
-
-        plt.grid(True)
-
-        filename = (
-            f"{from_currency}_{to_currency}.png"
-        )
-
-        plt.savefig(
-            filename,
-            bbox_inches="tight"
-        )
-
-        plt.close()
-
-        trend = (
-            "📈 Рост"
-            if change_percent > 0
-            else "📉 Падение"
-        )
-
-        caption = (
-            f"📊 {from_currency}/{to_currency}\n\n"
-            f"{trend}: {change_percent:.2f}%\n"
-            f"📉 Минимум: {min_rate:.4f}\n"
-            f"📈 Максимум: {max_rate:.4f}\n"
-            f"💰 Текущий курс: {last_rate:.4f}"
-        )
-
-        with open(filename, "rb") as photo:
-
-            await bot.send_photo(
-                callback.from_user.id,
-                photo,
-                caption=caption
-            )
-
-        await callback.answer()
-
-    except Exception as e:
-
-        print("Ошибка графика:", e)
-
-        await callback.answer(
-            "❌ Ошибка графика"
-        )
 
 # =========================
 # ОЧИСТКА ИСТОРИИ
