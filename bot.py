@@ -1,8 +1,12 @@
 import os
 import requests
+import matplotlib.pyplot as plt
+
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, executor, types
+
 from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
@@ -12,16 +16,21 @@ from aiogram.types import (
 
 from database import add_user, save_history, get_history
 
-# Загрузка токена
+# =========================
+# ЗАГРУЗКА ТОКЕНА
+# =========================
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Проверка токена
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден!")
 
-# Запуск бота
+# =========================
+# ЗАПУСК БОТА
+# =========================
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
@@ -40,7 +49,7 @@ keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
 
 # =========================
-# START
+# /START
 # =========================
 
 @dp.message_handler(commands=["start"])
@@ -55,7 +64,7 @@ async def start(message: types.Message):
     )
 
 # =========================
-# HELP
+# /HELP
 # =========================
 
 @dp.message_handler(commands=["help"])
@@ -146,7 +155,7 @@ async def history(message: types.Message):
     await message.answer(text)
 
 # =========================
-# КОНВЕРТАЦИЯ
+# КОНВЕРТАЦИЯ ВАЛЮТ
 # =========================
 
 @dp.message_handler()
@@ -187,7 +196,10 @@ async def convert_currency(message: types.Message):
 
         save_history(message.from_user.id, result_text)
 
-        # INLINE КНОПКИ
+        # =========================
+        # INLINE-КНОПКИ
+        # =========================
+
         inline_kb = InlineKeyboardMarkup(row_width=2)
 
         btn_reverse = InlineKeyboardButton(
@@ -200,7 +212,13 @@ async def convert_currency(message: types.Message):
             callback_data=f"rate_{from_currency}_{to_currency}"
         )
 
+        btn_graph = InlineKeyboardButton(
+            "📊 График",
+            callback_data=f"graph_{from_currency}_{to_currency}"
+        )
+
         inline_kb.add(btn_reverse, btn_rate)
+        inline_kb.add(btn_graph)
 
         await message.answer(
             result_text,
@@ -274,6 +292,75 @@ async def show_rate(callback: types.CallbackQuery):
     except Exception as e:
         print(e)
         await callback.answer("❌ Ошибка")
+
+# =========================
+# КНОПКА ГРАФИК
+# =========================
+
+@dp.callback_query_handler(lambda c: c.data.startswith("graph_"))
+async def show_graph(callback: types.CallbackQuery):
+    try:
+        _, from_currency, to_currency = callback.data.split("_")
+
+        dates = []
+        rates = []
+
+        # Получаем курс за 7 дней
+        for i in range(7):
+            date = datetime.now() - timedelta(days=6 - i)
+
+            url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+
+            response = requests.get(url)
+
+            data = response.json()
+
+            rate = data["rates"][to_currency]
+
+            dates.append(date.strftime("%d.%m"))
+            rates.append(rate)
+
+        # =========================
+        # СОЗДАНИЕ ГРАФИКА
+        # =========================
+
+        plt.figure(figsize=(8, 4))
+
+        plt.plot(dates, rates, marker="o")
+
+        plt.title(f"{from_currency}/{to_currency} — 7 дней")
+
+        plt.xlabel("Дата")
+        plt.ylabel("Курс")
+
+        plt.grid(True)
+
+        # =========================
+        # СОХРАНЕНИЕ PNG
+        # =========================
+
+        filename = f"{from_currency}_{to_currency}.png"
+
+        plt.savefig(filename)
+
+        plt.close()
+
+        # =========================
+        # ОТПРАВКА ГРАФИКА
+        # =========================
+
+        with open(filename, "rb") as photo:
+            await bot.send_photo(
+                callback.from_user.id,
+                photo,
+                caption=f"📊 График {from_currency}/{to_currency}"
+            )
+
+        await callback.answer()
+
+    except Exception as e:
+        print(e)
+        await callback.answer("❌ Ошибка графика")
 
 # =========================
 # ЗАПУСК БОТА
