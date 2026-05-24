@@ -23,10 +23,10 @@ dp = Dispatcher(bot)
 # Клавиатура
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 
-btn_convert = KeyboardButton("Конвертация")
-btn_rates = KeyboardButton("Курс валют")
-btn_help = KeyboardButton("Помощь")
-btn_history = KeyboardButton("История")
+btn_convert = KeyboardButton("💱 Конвертация")
+btn_rates = KeyboardButton("📈 Курс валют")
+btn_help = KeyboardButton("ℹ️ Помощь")
+btn_history = KeyboardButton("📜 История")
 
 keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
@@ -58,7 +58,7 @@ async def help_command(message: types.Message):
 
 
 # Кнопка Конвертация
-@dp.message_handler(lambda message: message.text == "Конвертация")
+@dp.message_handler(lambda message: message.text == "💱 Конвертация")
 async def convert_button(message: types.Message):
     await message.answer(
         "💱 Введите данные:\n\n"
@@ -67,7 +67,7 @@ async def convert_button(message: types.Message):
 
 
 # Кнопка Курс валют
-@dp.message_handler(lambda message: message.text == "Курс валют")
+@dp.message_handler(lambda message: message.text == "📈 Курс валют")
 async def rates_button(message: types.Message):
     await message.answer(
         "📈 Популярные валюты:\n\n"
@@ -81,7 +81,7 @@ async def rates_button(message: types.Message):
 
 
 # Кнопка Помощь
-@dp.message_handler(lambda message: message.text == "Помощь")
+@dp.message_handler(lambda message: message.text == "ℹ️ Помощь")
 async def help_button(message: types.Message):
     await message.answer(
         "ℹ️ Пример использования:\n\n"
@@ -90,7 +90,7 @@ async def help_button(message: types.Message):
 
 
 # История
-@dp.message_handler(lambda message: message.text == "История")
+@dp.message_handler(lambda message: message.text == "📜 История")
 async def history(message: types.Message):
     history_data = get_history(message.from_user.id)
 
