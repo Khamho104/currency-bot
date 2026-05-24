@@ -57,8 +57,23 @@ btn_rates = KeyboardButton("📈 Курс валют")
 btn_help = KeyboardButton("ℹ️ Помощь")
 btn_history = KeyboardButton("📜 История")
 
+btn_usd_eur = KeyboardButton("🇺🇸 USD/EUR")
+btn_usd_rub = KeyboardButton("🇺🇸 USD/RUB")
+btn_eur_rub = KeyboardButton("🇪🇺 EUR/RUB")
+btn_gbp_usd = KeyboardButton("🇬🇧 GBP/USD")
+
 keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
+
+keyboard.add(
+    btn_usd_eur,
+    btn_usd_rub
+)
+
+keyboard.add(
+    btn_eur_rub,
+    btn_gbp_usd
+)
 
 # =========================
 # ПОЛУЧЕНИЕ КУРСА
@@ -102,7 +117,7 @@ async def update_rates():
             pairs = [
                 ("USD", "EUR"),
                 ("USD", "RUB"),
-                ("EUR", "USD"),
+                ("EUR", "RUB"),
                 ("GBP", "USD")
             ]
 
@@ -223,6 +238,70 @@ async def help_button(message: types.Message):
     )
 
 # =========================
+# БЫСТРЫЕ КНОПКИ ВАЛЮТ
+# =========================
+
+@dp.message_handler(
+    lambda message: message.text in [
+        "🇺🇸 USD/EUR",
+        "🇺🇸 USD/RUB",
+        "🇪🇺 EUR/RUB",
+        "🇬🇧 GBP/USD"
+    ]
+)
+async def quick_rates(message: types.Message):
+
+    try:
+
+        pair = message.text.split(" ")[1]
+
+        from_currency, to_currency = (
+            pair.split("/")
+        )
+
+        rate = get_rate(
+            from_currency,
+            to_currency
+        )
+
+        text = (
+            f"⚡ Быстрый курс\n\n"
+            f"💱 {from_currency}/{to_currency}\n\n"
+            f"📈 1 {from_currency} = "
+            f"{rate:.4f} {to_currency}"
+        )
+
+        inline_kb = InlineKeyboardMarkup()
+
+        btn_graph = InlineKeyboardButton(
+            "📊 График",
+            callback_data=f"graph_{from_currency}_{to_currency}"
+        )
+
+        btn_reverse = InlineKeyboardButton(
+            "🔄 Поменять",
+            callback_data=f"reverse_1_{to_currency}_{from_currency}"
+        )
+
+        inline_kb.add(
+            btn_graph,
+            btn_reverse
+        )
+
+        await message.answer(
+            text,
+            reply_markup=inline_kb
+        )
+
+    except Exception as e:
+
+        print(e)
+
+        await message.answer(
+            "❌ Ошибка быстрого курса"
+        )
+
+# =========================
 # ИСТОРИЯ
 # =========================
 
@@ -251,10 +330,6 @@ async def history(message: types.Message):
     for item in history_data:
 
         text += f"• {item}\n\n"
-
-    # =========================
-    # INLINE-КНОПКА
-    # =========================
 
     inline_kb = InlineKeyboardMarkup()
 
@@ -307,10 +382,6 @@ async def convert_currency(message: types.Message):
             message.from_user.id,
             result_text
         )
-
-        # =========================
-        # INLINE-КНОПКИ
-        # =========================
 
         inline_kb = InlineKeyboardMarkup(row_width=2)
 
@@ -441,7 +512,6 @@ async def show_graph(
         dates = []
         rates = []
 
-        # История за 7 дней
         for i in range(7):
 
             date = (
@@ -472,7 +542,6 @@ async def show_graph(
 
             rates.append(rate)
 
-        # Аналитика
         first_rate = rates[0]
         last_rate = rates[-1]
 
@@ -484,15 +553,10 @@ async def show_graph(
         min_rate = min(rates)
         max_rate = max(rates)
 
-        # Цвет
         color = "green"
 
         if change_percent < 0:
             color = "red"
-
-        # =========================
-        # ГРАФИК
-        # =========================
 
         plt.figure(figsize=(10, 5))
 
@@ -521,10 +585,6 @@ async def show_graph(
 
         plt.grid(True)
 
-        # =========================
-        # СОХРАНЕНИЕ
-        # =========================
-
         filename = (
             f"{from_currency}_{to_currency}.png"
         )
@@ -549,10 +609,6 @@ async def show_graph(
             f"📈 Максимум: {max_rate:.4f}\n"
             f"💰 Текущий курс: {last_rate:.4f}"
         )
-
-        # =========================
-        # ОТПРАВКА
-        # =========================
 
         with open(filename, "rb") as photo:
 
