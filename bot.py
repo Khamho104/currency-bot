@@ -7,7 +7,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from database import add_user, save_history, get_history
 
-# Загрузка переменных
+# Загрузка токена
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -16,45 +16,44 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден!")
 
-# Инициализация бота
+# Запуск бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
 # Клавиатура
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 
-keyboard.add(
-    KeyboardButton("Конвертация"),
-    KeyboardButton("Курс валют")
-)
+btn_convert = KeyboardButton("Конвертация")
+btn_rates = KeyboardButton("Курс валют")
+btn_help = KeyboardButton("Помощь")
+btn_history = KeyboardButton("История")
 
-keyboard.add(
-    KeyboardButton("Помощь"),
-    KeyboardButton("История")
-)
+keyboard.add(btn_convert, btn_rates)
+keyboard.add(btn_help, btn_history)
 
 
-# START
+# /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     add_user(message.from_user.id)
 
     await message.answer(
         "👋 Добро пожаловать в Currency Converter Bot!\n\n"
-        "Введите данные в формате:\n"
+        "💱 Введите данные в формате:\n"
         "100 USD EUR",
         reply_markup=keyboard
     )
 
 
-# HELP
+# /help
 @dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
     await message.answer(
-        "ℹ️ Использование:\n\n"
-        "100 USD EUR\n\n"
-        "Пример:\n"
-        "250 USD EUR"
+        "📌 Доступные команды:\n\n"
+        "/start — запуск бота\n"
+        "/help — помощь\n\n"
+        "💱 Для конвертации используйте формат:\n"
+        "100 USD EUR"
     )
 
 
@@ -62,7 +61,7 @@ async def help_command(message: types.Message):
 @dp.message_handler(lambda message: message.text == "Конвертация")
 async def convert_button(message: types.Message):
     await message.answer(
-        "💱 Введите данные:\n"
+        "💱 Введите данные:\n\n"
         "100 USD EUR"
     )
 
@@ -72,11 +71,12 @@ async def convert_button(message: types.Message):
 async def rates_button(message: types.Message):
     await message.answer(
         "📈 Популярные валюты:\n\n"
-        "USD — Доллар США\n"
-        "EUR — Евро\n"
-        "RUB — Российский рубль\n"
-        "GBP — Фунт\n"
-        "JPY — Йена"
+        "🇺🇸 USD — Доллар США\n"
+        "🇪🇺 EUR — Евро\n"
+        "🇷🇺 RUB — Российский рубль\n"
+        "🇬🇧 GBP — Фунт стерлингов\n"
+        "🇯🇵 JPY — Японская йена\n"
+        "🇰🇿 KZT — Тенге"
     )
 
 
@@ -84,7 +84,7 @@ async def rates_button(message: types.Message):
 @dp.message_handler(lambda message: message.text == "Помощь")
 async def help_button(message: types.Message):
     await message.answer(
-        "ℹ️ Пример:\n\n"
+        "ℹ️ Пример использования:\n\n"
         "100 USD EUR"
     )
 
@@ -106,7 +106,7 @@ async def history(message: types.Message):
     await message.answer(text)
 
 
-# Конвертация
+# Конвертация валют
 @dp.message_handler()
 async def convert_currency(message: types.Message):
     try:
@@ -159,5 +159,5 @@ async def convert_currency(message: types.Message):
 
 # Запуск
 if __name__ == "__main__":
-    print("Бот запущен...")
+    print("🚀 Бот запущен...")
     executor.start_polling(dp, skip_updates=True)
