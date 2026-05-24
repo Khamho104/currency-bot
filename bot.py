@@ -168,13 +168,33 @@ async def start(message: types.Message):
 # HELP
 # =========================
 
-@dp.message_handler(commands=["help"])
+@dp.message_handler(
+    commands=["help"]
+)
 async def help_command(message: types.Message):
 
     await message.answer(
-        "ℹ️ Пример:\n\n"
-        "100 USD EUR"
+        "ℹ️ Использование бота:\n\n"
+        "💱 Формат конвертации:\n"
+        "100 USD EUR\n\n"
+        "📈 Возможности:\n"
+        "• Конвертация валют\n"
+        "• Быстрые курсы\n"
+        "• Графики за 7 дней\n"
+        "• История запросов\n"
+        "• Очистка истории"
     )
+
+# =========================
+# КНОПКА ПОМОЩЬ
+# =========================
+
+@dp.message_handler(
+    text=["Помощь", "ℹ️ Помощь"]
+)
+async def help_button(message: types.Message):
+
+    await help_command(message)
 
 # =========================
 # КНОПКА КОНВЕРТАЦИЯ
@@ -304,14 +324,22 @@ async def quick_rates(message: types.Message):
             f"{rate:.4f} {to_currency}"
         )
 
-        inline_kb = InlineKeyboardMarkup()
+        inline_kb = InlineKeyboardMarkup(row_width=2)
 
         btn_graph = InlineKeyboardButton(
             "📊 График",
             callback_data=f"graph_{from_currency}_{to_currency}"
         )
 
-        inline_kb.add(btn_graph)
+        btn_rate = InlineKeyboardButton(
+            "📈 Курс",
+            callback_data=f"rate_{from_currency}_{to_currency}"
+        )
+
+        inline_kb.add(
+            btn_graph,
+            btn_rate
+        )
 
         await message.answer(
             text,
@@ -360,19 +388,37 @@ async def convert_currency(message: types.Message):
             f"{rate:.4f} {to_currency}"
         )
 
+        # СОХРАНЕНИЕ ИСТОРИИ
         save_history(
             message.from_user.id,
             result_text
         )
 
-        inline_kb = InlineKeyboardMarkup()
+        inline_kb = InlineKeyboardMarkup(row_width=2)
 
         btn_graph = InlineKeyboardButton(
             "📊 График",
             callback_data=f"graph_{from_currency}_{to_currency}"
         )
 
-        inline_kb.add(btn_graph)
+        btn_rate = InlineKeyboardButton(
+            "📈 Курс",
+            callback_data=f"rate_{from_currency}_{to_currency}"
+        )
+
+        btn_reverse = InlineKeyboardButton(
+            "🔄 Поменять",
+            callback_data=f"reverse_{amount}_{to_currency}_{from_currency}"
+        )
+
+        inline_kb.add(
+            btn_graph,
+            btn_rate
+        )
+
+        inline_kb.add(
+            btn_reverse
+        )
 
         await message.answer(
             result_text,
@@ -385,6 +431,84 @@ async def convert_currency(message: types.Message):
 
         await message.answer(
             "❌ Ошибка конвертации"
+        )
+
+# =========================
+# КНОПКА КУРС
+# =========================
+
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("rate_")
+)
+async def show_rate(
+    callback: types.CallbackQuery
+):
+
+    try:
+
+        _, from_currency, to_currency = (
+            callback.data.split("_")
+        )
+
+        rate = get_rate(
+            from_currency,
+            to_currency
+        )
+
+        await callback.message.answer(
+            f"📈 1 {from_currency} = "
+            f"{rate:.4f} {to_currency}"
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+
+        print("Ошибка курса:", e)
+
+        await callback.answer(
+            "❌ Ошибка"
+        )
+
+# =========================
+# REVERSE
+# =========================
+
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("reverse_")
+)
+async def reverse_currency(
+    callback: types.CallbackQuery
+):
+
+    try:
+
+        _, amount, from_currency, to_currency = (
+            callback.data.split("_")
+        )
+
+        amount = float(amount)
+
+        rate = get_rate(
+            from_currency,
+            to_currency
+        )
+
+        result = amount * rate
+
+        await callback.message.answer(
+            f"🔄 {amount:.2f} {from_currency} = "
+            f"{result:.2f} {to_currency}"
+        )
+
+        await callback.answer()
+
+    except Exception as e:
+
+        print("Ошибка reverse:", e)
+
+        await callback.answer(
+            "❌ Ошибка"
         )
 
 # =========================
