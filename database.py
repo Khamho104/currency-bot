@@ -1,22 +1,19 @@
 import sqlite3
 
 # =========================
-# ПОДКЛЮЧЕНИЕ
+# ПОДКЛЮЧЕНИЕ К БАЗЕ
 # =========================
 
-def connect_db():
+conn = sqlite3.connect(
+    "database.db",
+    check_same_thread=False
+)
 
-    return sqlite3.connect(
-        "database.db"
-    )
+cursor = conn.cursor()
 
 # =========================
 # СОЗДАНИЕ ТАБЛИЦ
 # =========================
-
-conn = connect_db()
-
-cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
@@ -26,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     text TEXT
 )
@@ -33,26 +31,18 @@ CREATE TABLE IF NOT EXISTS history (
 
 conn.commit()
 
-conn.close()
-
 # =========================
 # ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ
 # =========================
 
 def add_user(user_id):
 
-    conn = connect_db()
-
-    cursor = conn.cursor()
-
     cursor.execute(
-        "INSERT INTO users VALUES (?)",
+        "INSERT INTO users (user_id) VALUES (?)",
         (user_id,)
     )
 
     conn.commit()
-
-    conn.close()
 
 # =========================
 # СОХРАНИТЬ ИСТОРИЮ
@@ -60,18 +50,16 @@ def add_user(user_id):
 
 def save_history(user_id, text):
 
-    conn = connect_db()
-
-    cursor = conn.cursor()
-
     cursor.execute(
-        "INSERT INTO history VALUES (?, ?)",
+        """
+        INSERT INTO history
+        (user_id, text)
+        VALUES (?, ?)
+        """,
         (user_id, text)
     )
 
     conn.commit()
-
-    conn.close()
 
 # =========================
 # ПОЛУЧИТЬ ИСТОРИЮ
@@ -79,24 +67,18 @@ def save_history(user_id, text):
 
 def get_history(user_id):
 
-    conn = connect_db()
-
-    cursor = conn.cursor()
-
     cursor.execute(
         """
         SELECT text
         FROM history
         WHERE user_id = ?
-        ORDER BY rowid DESC
+        ORDER BY id DESC
         LIMIT 10
         """,
         (user_id,)
     )
 
     rows = cursor.fetchall()
-
-    conn.close()
 
     return [row[0] for row in rows]
 
@@ -105,10 +87,6 @@ def get_history(user_id):
 # =========================
 
 def clear_history(user_id):
-
-    conn = connect_db()
-
-    cursor = conn.cursor()
 
     cursor.execute(
         """
@@ -119,5 +97,3 @@ def clear_history(user_id):
     )
 
     conn.commit()
-
-    conn.close()
