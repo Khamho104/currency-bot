@@ -83,7 +83,10 @@ def get_rate(from_currency, to_currency):
 
     pair = f"{from_currency}_{to_currency}"
 
-    # Кэш
+    # =========================
+    # КЭШ
+    # =========================
+
     if pair in cached_rates:
         return cached_rates[pair]
 
@@ -95,6 +98,12 @@ def get_rate(from_currency, to_currency):
     response = requests.get(url)
 
     data = response.json()
+
+    if "rates" not in data:
+        raise ValueError("Ошибка API")
+
+    if to_currency not in data["rates"]:
+        raise ValueError("Валюта не найдена")
 
     rate = data["rates"][to_currency]
 
@@ -134,6 +143,9 @@ async def update_rates():
 
                 data = response.json()
 
+                if "rates" not in data:
+                    continue
+
                 rate = data["rates"][to_currency]
 
                 cached_rates[pair] = rate
@@ -146,7 +158,10 @@ async def update_rates():
 
             print("❌ Ошибка обновления:", e)
 
-        # Каждые 5 минут
+        # =========================
+        # КАЖДЫЕ 5 МИНУТ
+        # =========================
+
         await asyncio.sleep(300)
 
 # =========================
@@ -185,10 +200,7 @@ async def help_command(message: types.Message):
 # =========================
 
 @dp.message_handler(
-    lambda message: message.text in [
-        "Конвертация",
-        "💱 Конвертация"
-    ]
+    text=["Конвертация", "💱 Конвертация"]
 )
 async def convert_button(message: types.Message):
 
@@ -202,33 +214,39 @@ async def convert_button(message: types.Message):
 # =========================
 
 @dp.message_handler(
-    lambda message: message.text in [
-        "Курс валют",
-        "📈 Курс валют"
-    ]
+    text=["Курс валют", "📈 Курс валют"]
 )
 async def rates_button(message: types.Message):
 
-    usd_rub = get_rate("USD", "RUB")
-    usd_eur = get_rate("USD", "EUR")
-    eur_rub = get_rate("EUR", "RUB")
+    try:
 
-    await message.answer(
-        f"📈 Актуальные курсы:\n\n"
-        f"🇺🇸 USD/RUB: {usd_rub:.2f}\n"
-        f"🇺🇸 USD/EUR: {usd_eur:.4f}\n"
-        f"🇪🇺 EUR/RUB: {eur_rub:.2f}"
-    )
+        usd_rub = get_rate("USD", "RUB")
+        usd_eur = get_rate("USD", "EUR")
+        eur_rub = get_rate("EUR", "RUB")
+
+        text = (
+            f"📈 Актуальные курсы:\n\n"
+            f"🇺🇸 USD/RUB: {usd_rub:.2f}\n"
+            f"🇺🇸 USD/EUR: {usd_eur:.4f}\n"
+            f"🇪🇺 EUR/RUB: {eur_rub:.2f}"
+        )
+
+        await message.answer(text)
+
+    except Exception as e:
+
+        print("Ошибка курса:", e)
+
+        await message.answer(
+            "❌ Не удалось получить курсы"
+        )
 
 # =========================
 # КНОПКА ПОМОЩЬ
 # =========================
 
 @dp.message_handler(
-    lambda message: message.text in [
-        "Помощь",
-        "ℹ️ Помощь"
-    ]
+    text=["Помощь", "ℹ️ Помощь"]
 )
 async def help_button(message: types.Message):
 
@@ -238,11 +256,11 @@ async def help_button(message: types.Message):
     )
 
 # =========================
-# БЫСТРЫЕ КНОПКИ ВАЛЮТ
+# БЫСТРЫЕ КНОПКИ
 # =========================
 
 @dp.message_handler(
-    lambda message: message.text in [
+    text=[
         "🇺🇸 USD/EUR",
         "🇺🇸 USD/RUB",
         "🇪🇺 EUR/RUB",
@@ -295,7 +313,7 @@ async def quick_rates(message: types.Message):
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка быстрого курса:", e)
 
         await message.answer(
             "❌ Ошибка быстрого курса"
@@ -306,44 +324,53 @@ async def quick_rates(message: types.Message):
 # =========================
 
 @dp.message_handler(
-    lambda message: message.text in [
-        "История",
-        "📜 История"
-    ]
+    text=["История", "📜 История"]
 )
 async def history(message: types.Message):
 
-    history_data = get_history(
-        message.from_user.id
-    )
+    try:
 
-    if not history_data:
-
-        await message.answer(
-            "📭 История пуста."
+        history_data = get_history(
+            message.from_user.id
         )
 
-        return
+        print("История:", history_data)
 
-    text = "📜 Последние конвертации:\n\n"
+        if not history_data:
 
-    for item in history_data:
+            await message.answer(
+                "📭 История пуста."
+            )
 
-        text += f"• {item}\n\n"
+            return
 
-    inline_kb = InlineKeyboardMarkup()
+        text = "📜 Последние конвертации:\n\n"
 
-    btn_clear = InlineKeyboardButton(
-        "🗑 Очистить историю",
-        callback_data="clear_history"
-    )
+        for item in history_data:
 
-    inline_kb.add(btn_clear)
+            text += f"• {item}\n\n"
 
-    await message.answer(
-        text,
-        reply_markup=inline_kb
-    )
+        inline_kb = InlineKeyboardMarkup()
+
+        btn_clear = InlineKeyboardButton(
+            "🗑 Очистить историю",
+            callback_data="clear_history"
+        )
+
+        inline_kb.add(btn_clear)
+
+        await message.answer(
+            text,
+            reply_markup=inline_kb
+        )
+
+    except Exception as e:
+
+        print("Ошибка истории:", e)
+
+        await message.answer(
+            "❌ Ошибка загрузки истории"
+        )
 
 # =========================
 # КОНВЕРТАЦИЯ
@@ -357,7 +384,7 @@ async def convert_currency(message: types.Message):
         parts = message.text.strip().split()
 
         if len(parts) != 3:
-            raise ValueError
+            return
 
         amount = float(parts[0])
 
@@ -375,13 +402,20 @@ async def convert_currency(message: types.Message):
             f"💱 {amount:.2f} {from_currency} = "
             f"{result:.2f} {to_currency}\n\n"
             f"📈 Курс:\n"
-            f"1 {from_currency} = {rate:.4f} {to_currency}"
+            f"1 {from_currency} = "
+            f"{rate:.4f} {to_currency}"
         )
+
+        # =========================
+        # СОХРАНЕНИЕ ИСТОРИИ
+        # =========================
 
         save_history(
             message.from_user.id,
             result_text
         )
+
+        print("История сохранена")
 
         inline_kb = InlineKeyboardMarkup(row_width=2)
 
@@ -410,12 +444,10 @@ async def convert_currency(message: types.Message):
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка конвертации:", e)
 
         await message.answer(
-            "❌ Ошибка.\n\n"
-            "Введите:\n"
-            "100 USD EUR"
+            "❌ Ошибка конвертации"
         )
 
 # =========================
@@ -453,7 +485,7 @@ async def reverse_currency(
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка reverse:", e)
 
         await callback.answer("❌ Ошибка")
 
@@ -488,12 +520,12 @@ async def show_rate(
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка rate:", e)
 
         await callback.answer("❌ Ошибка")
 
 # =========================
-# КРАСИВЫЙ ГРАФИК
+# ГРАФИК
 # =========================
 
 @dp.callback_query_handler(
@@ -541,6 +573,14 @@ async def show_graph(
             )
 
             rates.append(rate)
+
+        if not rates:
+
+            await callback.answer(
+                "❌ Нет данных"
+            )
+
+            return
 
         first_rate = rates[0]
         last_rate = rates[-1]
@@ -622,7 +662,7 @@ async def show_graph(
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка графика:", e)
 
         await callback.answer(
             "❌ Ошибка графика"
@@ -653,7 +693,7 @@ async def clear_history_callback(
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка очистки:", e)
 
         await callback.answer(
             "❌ Ошибка"
