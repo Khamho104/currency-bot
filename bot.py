@@ -171,7 +171,14 @@ async def convert_currency(message: types.Message):
         from_currency = parts[1].upper()
         to_currency = parts[2].upper()
 
-        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+        # =========================
+        # FRANKFURTER API
+        # =========================
+
+        url = (
+            f"https://api.frankfurter.app/latest"
+            f"?from={from_currency}&to={to_currency}"
+        )
 
         response = requests.get(url)
 
@@ -191,7 +198,8 @@ async def convert_currency(message: types.Message):
 
         result_text = (
             f"💱 {amount:.2f} {from_currency} = "
-            f"{result:.2f} {to_currency}"
+            f"{result:.2f} {to_currency}\n\n"
+            f"📈 Курс: 1 {from_currency} = {rate:.4f} {to_currency}"
         )
 
         save_history(message.from_user.id, result_text)
@@ -245,7 +253,10 @@ async def reverse_currency(callback: types.CallbackQuery):
 
         amount = float(amount)
 
-        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+        url = (
+            f"https://api.frankfurter.app/latest"
+            f"?from={from_currency}&to={to_currency}"
+        )
 
         response = requests.get(url)
 
@@ -275,7 +286,10 @@ async def show_rate(callback: types.CallbackQuery):
     try:
         _, from_currency, to_currency = callback.data.split("_")
 
-        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+        url = (
+            f"https://api.frankfurter.app/latest"
+            f"?from={from_currency}&to={to_currency}"
+        )
 
         response = requests.get(url)
 
@@ -284,7 +298,8 @@ async def show_rate(callback: types.CallbackQuery):
         rate = data["rates"][to_currency]
 
         await callback.message.answer(
-            f"📈 1 {from_currency} = {rate:.2f} {to_currency}"
+            f"📈 1 {from_currency} = "
+            f"{rate:.4f} {to_currency}"
         )
 
         await callback.answer()
@@ -305,30 +320,68 @@ async def show_graph(callback: types.CallbackQuery):
         dates = []
         rates = []
 
-        # Получаем курс за 7 дней
-        for i in range(7):
-            date = datetime.now() - timedelta(days=6 - i)
+        # =========================
+        # НАСТОЯЩАЯ ИСТОРИЯ ЗА 7 ДНЕЙ
+        # =========================
 
-            url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+        for i in range(7):
+
+            date = (
+                datetime.now() - timedelta(days=6 - i)
+            ).strftime("%Y-%m-%d")
+
+            url = (
+                f"https://api.frankfurter.app/{date}"
+                f"?from={from_currency}&to={to_currency}"
+            )
 
             response = requests.get(url)
 
             data = response.json()
 
+            if "rates" not in data:
+                continue
+
             rate = data["rates"][to_currency]
 
-            dates.append(date.strftime("%d.%m"))
+            dates.append(
+                datetime.strptime(
+                    date,
+                    "%Y-%m-%d"
+                ).strftime("%d.%m")
+            )
+
             rates.append(rate)
 
         # =========================
-        # СОЗДАНИЕ ГРАФИКА
+        # АНАЛИТИКА
         # =========================
 
-        plt.figure(figsize=(8, 4))
+        first_rate = rates[0]
+        last_rate = rates[-1]
 
-        plt.plot(dates, rates, marker="o")
+        change_percent = (
+            (last_rate - first_rate) / first_rate
+        ) * 100
 
-        plt.title(f"{from_currency}/{to_currency} — 7 дней")
+        min_rate = min(rates)
+        max_rate = max(rates)
+
+        # =========================
+        # ГРАФИК
+        # =========================
+
+        plt.figure(figsize=(10, 5))
+
+        plt.plot(
+            dates,
+            rates,
+            marker="o"
+        )
+
+        plt.title(
+            f"{from_currency}/{to_currency} — 7 дней"
+        )
 
         plt.xlabel("Дата")
         plt.ylabel("Курс")
@@ -339,21 +392,37 @@ async def show_graph(callback: types.CallbackQuery):
         # СОХРАНЕНИЕ PNG
         # =========================
 
-        filename = f"{from_currency}_{to_currency}.png"
+        filename = (
+            f"{from_currency}_{to_currency}.png"
+        )
 
         plt.savefig(filename)
 
         plt.close()
 
         # =========================
-        # ОТПРАВКА ГРАФИКА
+        # ТЕКСТ АНАЛИТИКИ
+        # =========================
+
+        trend = "📈 Рост" if change_percent > 0 else "📉 Падение"
+
+        caption = (
+            f"📊 График {from_currency}/{to_currency}\n\n"
+            f"{trend}: {change_percent:.2f}%\n"
+            f"📉 Минимум: {min_rate:.4f}\n"
+            f"📈 Максимум: {max_rate:.4f}\n"
+            f"💰 Текущий курс: {last_rate:.4f}"
+        )
+
+        # =========================
+        # ОТПРАВКА ФОТО
         # =========================
 
         with open(filename, "rb") as photo:
             await bot.send_photo(
                 callback.from_user.id,
                 photo,
-                caption=f"📊 График {from_currency}/{to_currency}"
+                caption=caption
             )
 
         await callback.answer()
