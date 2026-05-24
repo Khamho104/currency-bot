@@ -568,6 +568,13 @@ async def convert_currency(
                 "История сохранена"
             )
 
+            print(
+                "После сохранения:",
+                get_history(
+                    message.from_user.id
+                )
+            )
+
         except Exception as history_error:
 
             print(
