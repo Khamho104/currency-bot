@@ -1,33 +1,31 @@
 import sqlite3
 
 # =========================
-# ПОДКЛЮЧЕНИЕ К БАЗЕ
+# БАЗА ДАННЫХ
 # =========================
 
 conn = sqlite3.connect(
-    "database.db",
-    check_same_thread=False
+    "database.db"
 )
 
 cursor = conn.cursor()
 
 # =========================
-# ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
+# ТАБЛИЦА USERS
 # =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY
+    user_id INTEGER
 )
 """)
 
 # =========================
-# ТАБЛИЦА ИСТОРИИ
+# ТАБЛИЦА HISTORY
 # =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     text TEXT
 )
@@ -36,33 +34,33 @@ CREATE TABLE IF NOT EXISTS history (
 conn.commit()
 
 # =========================
-# ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
+# ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ
 # =========================
 
 def add_user(user_id):
 
     cursor.execute(
-        "INSERT OR IGNORE INTO users (user_id) VALUES (?)",
+        "INSERT INTO users VALUES (?)",
         (user_id,)
     )
 
     conn.commit()
 
 # =========================
-# СОХРАНЕНИЕ ИСТОРИИ
+# СОХРАНИТЬ ИСТОРИЮ
 # =========================
 
 def save_history(user_id, text):
 
     cursor.execute(
-        "INSERT INTO history (user_id, text) VALUES (?, ?)",
+        "INSERT INTO history VALUES (?, ?)",
         (user_id, text)
     )
 
     conn.commit()
 
 # =========================
-# ПОЛУЧЕНИЕ ИСТОРИИ
+# ПОЛУЧИТЬ ИСТОРИЮ
 # =========================
 
 def get_history(user_id):
@@ -72,7 +70,7 @@ def get_history(user_id):
         SELECT text
         FROM history
         WHERE user_id = ?
-        ORDER BY id DESC
+        ORDER BY rowid DESC
         LIMIT 10
         """,
         (user_id,)
@@ -83,13 +81,16 @@ def get_history(user_id):
     return [row[0] for row in rows]
 
 # =========================
-# ОЧИСТКА ИСТОРИИ
+# ОЧИСТИТЬ ИСТОРИЮ
 # =========================
 
 def clear_history(user_id):
 
     cursor.execute(
-        "DELETE FROM history WHERE user_id = ?",
+        """
+        DELETE FROM history
+        WHERE user_id = ?
+        """,
         (user_id,)
     )
 

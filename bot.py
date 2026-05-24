@@ -512,6 +512,85 @@ async def show_rate(
         await callback.answer("❌ Ошибка")
 
 # =========================
+# ГРАФИК
+# =========================
+
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("graph_")
+)
+async def show_graph(
+    callback: types.CallbackQuery
+):
+
+    try:
+
+        _, from_currency, to_currency = (
+            callback.data.split("_")
+        )
+
+        dates = []
+        rates = []
+
+        for i in range(7):
+
+            date = (
+                datetime.now()
+                - timedelta(days=6 - i)
+            ).strftime("%d.%m")
+
+            rate = get_rate(
+                from_currency,
+                to_currency
+            )
+
+            dates.append(date)
+            rates.append(rate)
+
+        plt.figure(figsize=(10, 5))
+
+        plt.plot(
+            dates,
+            rates,
+            marker="o",
+            linewidth=3
+        )
+
+        plt.title(
+            f"{from_currency}/{to_currency}"
+        )
+
+        plt.grid(True)
+
+        filename = (
+            f"{from_currency}_{to_currency}.png"
+        )
+
+        plt.savefig(filename)
+
+        plt.close()
+
+        with open(filename, "rb") as photo:
+
+            await bot.send_photo(
+                callback.from_user.id,
+                photo,
+                caption=(
+                    f"📊 График "
+                    f"{from_currency}/{to_currency}"
+                )
+            )
+
+        await callback.answer()
+
+    except Exception as e:
+
+        print("Ошибка графика:", e)
+
+        await callback.answer(
+            "❌ Ошибка графика"
+        )
+
+# =========================
 # ОЧИСТКА ИСТОРИИ
 # =========================
 
