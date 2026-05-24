@@ -1,4 +1,5 @@
 import os
+import asyncio
 import requests
 import matplotlib.pyplot as plt
 
@@ -35,6 +36,12 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
 # =========================
+# КЭШ КУРСОВ
+# =========================
+
+cached_rates = {}
+
+# =========================
 # КЛАВИАТУРА
 # =========================
 
@@ -49,11 +56,86 @@ keyboard.add(btn_convert, btn_rates)
 keyboard.add(btn_help, btn_history)
 
 # =========================
-# /START
+# ФУНКЦИЯ ПОЛУЧЕНИЯ КУРСА
+# =========================
+
+def get_rate(from_currency, to_currency):
+
+    pair = f"{from_currency}_{to_currency}"
+
+    # Если есть в кэше — используем
+    if pair in cached_rates:
+        return cached_rates[pair]
+
+    url = (
+        f"https://api.frankfurter.app/latest"
+        f"?from={from_currency}&to={to_currency}"
+    )
+
+    response = requests.get(url)
+
+    data = response.json()
+
+    rate = data["rates"][to_currency]
+
+    # Сохраняем в кэш
+    cached_rates[pair] = rate
+
+    return rate
+
+# =========================
+# АВТООБНОВЛЕНИЕ КУРСОВ
+# =========================
+
+async def update_rates():
+
+    while True:
+
+        try:
+
+            print("🔄 Обновление курсов...")
+
+            pairs = [
+                ("USD", "EUR"),
+                ("USD", "RUB"),
+                ("EUR", "USD"),
+                ("GBP", "USD")
+            ]
+
+            for from_currency, to_currency in pairs:
+
+                pair = f"{from_currency}_{to_currency}"
+
+                url = (
+                    f"https://api.frankfurter.app/latest"
+                    f"?from={from_currency}&to={to_currency}"
+                )
+
+                response = requests.get(url)
+
+                data = response.json()
+
+                rate = data["rates"][to_currency]
+
+                cached_rates[pair] = rate
+
+                print(f"✅ {pair}: {rate}")
+
+            print("✅ Курсы обновлены\n")
+
+        except Exception as e:
+            print("❌ Ошибка обновления:", e)
+
+        # Обновление каждые 5 минут
+        await asyncio.sleep(300)
+
+# =========================
+# START
 # =========================
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
+
     add_user(message.from_user.id)
 
     await message.answer(
@@ -64,16 +146,17 @@ async def start(message: types.Message):
     )
 
 # =========================
-# /HELP
+# HELP
 # =========================
 
 @dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
+
     await message.answer(
         "📌 Доступные команды:\n\n"
         "/start — запуск бота\n"
         "/help — помощь\n\n"
-        "💱 Для конвертации используйте формат:\n"
+        "💱 Пример:\n"
         "100 USD EUR"
     )
 
@@ -88,6 +171,7 @@ async def help_command(message: types.Message):
     ]
 )
 async def convert_button(message: types.Message):
+
     await message.answer(
         "💱 Введите данные:\n\n"
         "100 USD EUR"
@@ -104,14 +188,16 @@ async def convert_button(message: types.Message):
     ]
 )
 async def rates_button(message: types.Message):
+
+    usd_rub = get_rate("USD", "RUB")
+    usd_eur = get_rate("USD", "EUR")
+    eur_rub = get_rate("EUR", "RUB")
+
     await message.answer(
-        "📈 Популярные валюты:\n\n"
-        "🇺🇸 USD — Доллар США\n"
-        "🇪🇺 EUR — Евро\n"
-        "🇷🇺 RUB — Российский рубль\n"
-        "🇬🇧 GBP — Фунт стерлингов\n"
-        "🇯🇵 JPY — Японская йена\n"
-        "🇰🇿 KZT — Тенге"
+        f"📈 Актуальные курсы:\n\n"
+        f"🇺🇸 USD/RUB: {usd_rub:.2f}\n"
+        f"🇺🇸 USD/EUR: {usd_eur:.4f}\n"
+        f"🇪🇺 EUR/RUB: {eur_rub:.2f}"
     )
 
 # =========================
@@ -125,8 +211,9 @@ async def rates_button(message: types.Message):
     ]
 )
 async def help_button(message: types.Message):
+
     await message.answer(
-        "ℹ️ Пример использования:\n\n"
+        "ℹ️ Использование:\n\n"
         "100 USD EUR"
     )
 
@@ -141,6 +228,7 @@ async def help_button(message: types.Message):
     ]
 )
 async def history(message: types.Message):
+
     history_data = get_history(message.from_user.id)
 
     if not history_data:
@@ -155,12 +243,14 @@ async def history(message: types.Message):
     await message.answer(text)
 
 # =========================
-# КОНВЕРТАЦИЯ ВАЛЮТ
+# КОНВЕРТАЦИЯ
 # =========================
 
 @dp.message_handler()
 async def convert_currency(message: types.Message):
+
     try:
+
         parts = message.text.strip().split()
 
         if len(parts) != 3:
@@ -171,38 +261,24 @@ async def convert_currency(message: types.Message):
         from_currency = parts[1].upper()
         to_currency = parts[2].upper()
 
-        # =========================
-        # FRANKFURTER API
-        # =========================
-
-        url = (
-            f"https://api.frankfurter.app/latest"
-            f"?from={from_currency}&to={to_currency}"
+        rate = get_rate(
+            from_currency,
+            to_currency
         )
-
-        response = requests.get(url)
-
-        data = response.json()
-
-        if "rates" not in data:
-            await message.answer("❌ Неверная валюта.")
-            return
-
-        if to_currency not in data["rates"]:
-            await message.answer("❌ Валюта не найдена.")
-            return
-
-        rate = data["rates"][to_currency]
 
         result = amount * rate
 
         result_text = (
             f"💱 {amount:.2f} {from_currency} = "
             f"{result:.2f} {to_currency}\n\n"
-            f"📈 Курс: 1 {from_currency} = {rate:.4f} {to_currency}"
+            f"📈 Курс:\n"
+            f"1 {from_currency} = {rate:.4f} {to_currency}"
         )
 
-        save_history(message.from_user.id, result_text)
+        save_history(
+            message.from_user.id,
+            result_text
+        )
 
         # =========================
         # INLINE-КНОПКИ
@@ -234,35 +310,38 @@ async def convert_currency(message: types.Message):
         )
 
     except Exception as e:
+
         print(e)
 
         await message.answer(
             "❌ Ошибка.\n\n"
-            "Введите данные в формате:\n"
+            "Введите:\n"
             "100 USD EUR"
         )
 
 # =========================
-# REVERSE КНОПКА
+# REVERSE
 # =========================
 
-@dp.callback_query_handler(lambda c: c.data.startswith("reverse_"))
-async def reverse_currency(callback: types.CallbackQuery):
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("reverse_")
+)
+async def reverse_currency(
+    callback: types.CallbackQuery
+):
+
     try:
-        _, amount, from_currency, to_currency = callback.data.split("_")
+
+        _, amount, from_currency, to_currency = (
+            callback.data.split("_")
+        )
 
         amount = float(amount)
 
-        url = (
-            f"https://api.frankfurter.app/latest"
-            f"?from={from_currency}&to={to_currency}"
+        rate = get_rate(
+            from_currency,
+            to_currency
         )
-
-        response = requests.get(url)
-
-        data = response.json()
-
-        rate = data["rates"][to_currency]
 
         result = amount * rate
 
@@ -274,28 +353,32 @@ async def reverse_currency(callback: types.CallbackQuery):
         await callback.answer()
 
     except Exception as e:
+
         print(e)
+
         await callback.answer("❌ Ошибка")
 
 # =========================
 # КНОПКА КУРС
 # =========================
 
-@dp.callback_query_handler(lambda c: c.data.startswith("rate_"))
-async def show_rate(callback: types.CallbackQuery):
-    try:
-        _, from_currency, to_currency = callback.data.split("_")
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("rate_")
+)
+async def show_rate(
+    callback: types.CallbackQuery
+):
 
-        url = (
-            f"https://api.frankfurter.app/latest"
-            f"?from={from_currency}&to={to_currency}"
+    try:
+
+        _, from_currency, to_currency = (
+            callback.data.split("_")
         )
 
-        response = requests.get(url)
-
-        data = response.json()
-
-        rate = data["rates"][to_currency]
+        rate = get_rate(
+            from_currency,
+            to_currency
+        )
 
         await callback.message.answer(
             f"📈 1 {from_currency} = "
@@ -305,29 +388,37 @@ async def show_rate(callback: types.CallbackQuery):
         await callback.answer()
 
     except Exception as e:
+
         print(e)
+
         await callback.answer("❌ Ошибка")
 
 # =========================
-# КНОПКА ГРАФИК
+# КРАСИВЫЙ ГРАФИК
 # =========================
 
-@dp.callback_query_handler(lambda c: c.data.startswith("graph_"))
-async def show_graph(callback: types.CallbackQuery):
+@dp.callback_query_handler(
+    lambda c: c.data.startswith("graph_")
+)
+async def show_graph(
+    callback: types.CallbackQuery
+):
+
     try:
-        _, from_currency, to_currency = callback.data.split("_")
+
+        _, from_currency, to_currency = (
+            callback.data.split("_")
+        )
 
         dates = []
         rates = []
 
-        # =========================
-        # НАСТОЯЩАЯ ИСТОРИЯ ЗА 7 ДНЕЙ
-        # =========================
-
+        # История за 7 дней
         for i in range(7):
 
             date = (
-                datetime.now() - timedelta(days=6 - i)
+                datetime.now()
+                - timedelta(days=6 - i)
             ).strftime("%Y-%m-%d")
 
             url = (
@@ -353,22 +444,26 @@ async def show_graph(callback: types.CallbackQuery):
 
             rates.append(rate)
 
-        # =========================
-        # АНАЛИТИКА
-        # =========================
-
+        # Аналитика
         first_rate = rates[0]
         last_rate = rates[-1]
 
         change_percent = (
-            (last_rate - first_rate) / first_rate
+            (last_rate - first_rate)
+            / first_rate
         ) * 100
 
         min_rate = min(rates)
         max_rate = max(rates)
 
+        # Цвет тренда
+        color = "green"
+
+        if change_percent < 0:
+            color = "red"
+
         # =========================
-        # ГРАФИК
+        # КРАСИВЫЙ ГРАФИК
         # =========================
 
         plt.figure(figsize=(10, 5))
@@ -376,11 +471,21 @@ async def show_graph(callback: types.CallbackQuery):
         plt.plot(
             dates,
             rates,
-            marker="o"
+            marker="o",
+            linewidth=3,
+            color=color
+        )
+
+        plt.fill_between(
+            dates,
+            rates,
+            alpha=0.2,
+            color=color
         )
 
         plt.title(
-            f"{from_currency}/{to_currency} — 7 дней"
+            f"{from_currency}/{to_currency} — 7 дней",
+            fontsize=16
         )
 
         plt.xlabel("Дата")
@@ -388,37 +493,35 @@ async def show_graph(callback: types.CallbackQuery):
 
         plt.grid(True)
 
-        # =========================
-        # СОХРАНЕНИЕ PNG
-        # =========================
-
+        # Сохранение
         filename = (
             f"{from_currency}_{to_currency}.png"
         )
 
-        plt.savefig(filename)
+        plt.savefig(
+            filename,
+            bbox_inches="tight"
+        )
 
         plt.close()
 
-        # =========================
-        # ТЕКСТ АНАЛИТИКИ
-        # =========================
-
-        trend = "📈 Рост" if change_percent > 0 else "📉 Падение"
+        trend = (
+            "📈 Рост"
+            if change_percent > 0
+            else "📉 Падение"
+        )
 
         caption = (
-            f"📊 График {from_currency}/{to_currency}\n\n"
+            f"📊 {from_currency}/{to_currency}\n\n"
             f"{trend}: {change_percent:.2f}%\n"
             f"📉 Минимум: {min_rate:.4f}\n"
             f"📈 Максимум: {max_rate:.4f}\n"
             f"💰 Текущий курс: {last_rate:.4f}"
         )
 
-        # =========================
-        # ОТПРАВКА ФОТО
-        # =========================
-
+        # Отправка
         with open(filename, "rb") as photo:
+
             await bot.send_photo(
                 callback.from_user.id,
                 photo,
@@ -428,13 +531,31 @@ async def show_graph(callback: types.CallbackQuery):
         await callback.answer()
 
     except Exception as e:
+
         print(e)
-        await callback.answer("❌ Ошибка графика")
+
+        await callback.answer(
+            "❌ Ошибка графика"
+        )
 
 # =========================
 # ЗАПУСК БОТА
 # =========================
 
+async def on_startup(dp):
+
+    asyncio.create_task(
+        update_rates()
+    )
+
+    print("🤖 Автообновление включено")
+
 if __name__ == "__main__":
+
     print("🚀 Бот запущен...")
-    executor.start_polling(dp, skip_updates=True)
+
+    executor.start_polling(
+        dp,
+        skip_updates=True,
+        on_startup=on_startup
+    )
