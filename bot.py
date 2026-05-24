@@ -1,294 +1,155 @@
-import logging
+import os
 import requests
-import sqlite3
+from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from dotenv import load_dotenv
-import os
 
-# =========================
-# ЗАГРУЗКА .ENV
-# =========================
+from database import add_user, save_history, get_history
+
+# Загрузка .env
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+# Запуск бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-logging.basicConfig(level=logging.INFO)
+# Кнопки
+keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 
-# =========================
-# БАЗА ДАННЫХ
-# =========================
-conn = sqlite3.connect("database.db")
-cursor = conn.cursor()
+btn_convert = KeyboardButton("Конвертация")
+btn_rates = KeyboardButton("Курс валют")
+btn_help = KeyboardButton("Помощь")
+btn_history = KeyboardButton("История")
 
-# Таблица пользователей
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE,
-    username TEXT
-)
-""")
-
-# Таблица истории
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    request TEXT,
-    result TEXT
-)
-""")
-
-conn.commit()
-
-# =========================
-# ФУНКЦИИ БАЗЫ ДАННЫХ
-# =========================
-
-def add_user(user_id, username):
-    cursor.execute(
-        "INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
-        (user_id, username)
-    )
-    conn.commit()
+keyboard.add(btn_convert, btn_rates)
+keyboard.add(btn_help, btn_history)
 
 
-def save_history(user_id, request, result):
-    cursor.execute(
-        "INSERT INTO history (user_id, request, result) VALUES (?, ?, ?)",
-        (user_id, request, result)
-    )
-    conn.commit()
-
-
-def get_history(user_id):
-    cursor.execute(
-        """
-        SELECT request, result
-        FROM history
-        WHERE user_id = ?
-        ORDER BY id DESC
-        LIMIT 5
-        """,
-        (user_id,)
-    )
-
-    return cursor.fetchall()
-
-# =========================
-# КЛАВИАТУРА
-# =========================
-main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-
-btn_convert = KeyboardButton("💱 Конвертация")
-btn_help = KeyboardButton("ℹ️ Помощь")
-btn_rates = KeyboardButton("📈 Курсы валют")
-btn_history = KeyboardButton("🕘 История")
-
-main_keyboard.add(btn_convert)
-main_keyboard.row(btn_help, btn_rates)
-main_keyboard.add(btn_history)
-
-# =========================
-# СПИСОК ВАЛЮТ
-# =========================
-currencies_text = """
-💵 Доступные валюты:
-
-USD — Доллар США
-EUR — Евро
-RUB — Российский рубль
-GBP — Фунт стерлингов
-JPY — Японская йена
-CNY — Китайский юань
-KZT — Казахстанский тенге
-UAH — Украинская гривна
-"""
-
-# =========================
-# /START
-# =========================
+# Команда /start
 @dp.message_handler(commands=["start"])
-async def start_command(message: types.Message):
-
-    # Сохранение пользователя
-    add_user(
-        message.from_user.id,
-        message.from_user.username
-    )
-
-    text = (
-        "👋 <b>Добро пожаловать в Currency Converter Bot!</b>\n\n"
-        "💱 <b>Формат конвертации:</b>\n"
-        "<code>100 USD EUR</code>\n\n"
-        "📌 <b>Пример:</b>\n"
-        "<code>250 EUR RUB</code>"
-    )
+async def start(message: types.Message):
+    add_user(message.from_user.id)
 
     await message.answer(
-        text,
-        parse_mode="HTML",
-        reply_markup=main_keyboard
+        "👋 Добро пожаловать в Currency Converter Bot!\n\n"
+        "Введите сумму и валюты:\n"
+        "Например:\n"
+        "100 USD EUR",
+        reply_markup=keyboard
     )
 
-# =========================
-# /HELP
-# =========================
+
+# Команда /help
 @dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
-
-    text = (
-        "ℹ️ <b>Помощь</b>\n\n"
-        "Бот умеет конвертировать валюты.\n\n"
-        "💱 Формат:\n"
-        "<code>100 USD EUR</code>\n\n"
-        "📌 Пример:\n"
-        "<code>250 EUR RUB</code>\n\n"
-        "📈 Используй кнопку 'Курсы валют', "
-        "чтобы посмотреть список валют.\n\n"
-        "🕘 Кнопка 'История' показывает последние 5 запросов."
-    )
-
     await message.answer(
-        text,
-        parse_mode="HTML"
+        "📌 Доступные команды:\n\n"
+        "/start — запуск бота\n"
+        "/help — помощь\n\n"
+        "Для конвертации используйте формат:\n"
+        "100 USD EUR"
     )
 
-# =========================
-# КНОПКА ПОМОЩЬ
-# =========================
-@dp.message_handler(lambda message: message.text == "ℹ️ Помощь")
+
+# Кнопка Конвертация
+@dp.message_handler(lambda message: message.text == "Конвертация")
+async def convert_button(message: types.Message):
+    await message.answer(
+        "💱 Введите данные в формате:\n"
+        "100 USD EUR"
+    )
+
+
+# Кнопка Курс валют
+@dp.message_handler(lambda message: message.text == "Курс валют")
+async def rates_button(message: types.Message):
+    await message.answer(
+        "📈 Популярные валюты:\n\n"
+        "USD — Доллар США\n"
+        "EUR — Евро\n"
+        "RUB — Российский рубль\n"
+        "GBP — Фунт стерлингов\n"
+        "JPY — Японская йена\n"
+        "KZT — Казахстанский тенге"
+    )
+
+
+# Кнопка Помощь
+@dp.message_handler(lambda message: message.text == "Помощь")
 async def help_button(message: types.Message):
-
-    await help_command(message)
-
-# =========================
-# КНОПКА КУРСЫ ВАЛЮТ
-# =========================
-@dp.message_handler(lambda message: message.text == "📈 Курсы валют")
-async def currencies_button(message: types.Message):
-
-    await message.answer(currencies_text)
-
-# =========================
-# КНОПКА КОНВЕРТАЦИЯ
-# =========================
-@dp.message_handler(lambda message: message.text == "💱 Конвертация")
-async def convert_info(message: types.Message):
-
-    text = (
-        "💱 Введите сумму и валюты:\n\n"
-        "<code>100 USD EUR</code>"
-    )
-
     await message.answer(
-        text,
-        parse_mode="HTML"
+        "ℹ️ Пример использования:\n\n"
+        "100 USD EUR"
     )
 
-# =========================
-# КНОПКА ИСТОРИЯ
-# =========================
-@dp.message_handler(lambda message: message.text == "🕘 История")
-async def history_button(message: types.Message):
 
-    history = get_history(message.from_user.id)
+# История
+@dp.message_handler(lambda message: message.text == "История")
+async def history(message: types.Message):
+    history_data = get_history(message.from_user.id)
 
-    if not history:
-        await message.answer("❌ История пуста.")
+    if not history_data:
+        await message.answer("📭 История пуста.")
         return
 
-    text = "🕘 <b>Последние конвертации:</b>\n\n"
+    text = "📜 Последние конвертации:\n\n"
 
-    for req, result in history:
+    for item in history_data:
+        text += f"{item}\n"
 
-        text += (
-            f"💱 <code>{req}</code>\n"
-            f"✅ {result}\n\n"
-        )
+    await message.answer(text)
 
-    await message.answer(
-        text,
-        parse_mode="HTML"
-    )
 
-# =========================
-# КОНВЕРТАЦИЯ ВАЛЮТ
-# =========================
+# Конвертация валют
 @dp.message_handler()
 async def convert_currency(message: types.Message):
-
     try:
-        data = message.text.upper().split()
+        data = message.text.strip().split()
 
         if len(data) != 3:
-            await message.answer(
-                "❌ Неверный формат.\n\n"
-                "Введите:\n"
-                "<code>100 USD EUR</code>",
-                parse_mode="HTML"
-            )
-            return
+            raise ValueError
 
         amount = float(data[0])
-        from_currency = data[1]
-        to_currency = data[2]
+        from_currency = data[1].upper()
+        to_currency = data[2].upper()
 
-        # API запрос
-        url = (
-            f"https://api.exchangerate.host/convert"
-            f"?from={from_currency}"
-            f"&to={to_currency}"
-            f"&amount={amount}"
+        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency}"
+
+        response = requests.get(url).json()
+
+        if "rates" not in response:
+            await message.answer("❌ Неверная валюта.")
+            return
+
+        rate = response["rates"].get(to_currency)
+
+        if rate is None:
+            await message.answer("❌ Валюта не найдена.")
+            return
+
+        result = amount * rate
+
+        result_text = (
+            f"💱 {amount} {from_currency} = "
+            f"{result:.2f} {to_currency}"
         )
 
-        response = requests.get(url)
-        result = response.json()
+        save_history(message.from_user.id, result_text)
 
-        converted = result["result"]
+        await message.answer(result_text)
 
-        # Сохранение истории
-        save_history(
-            message.from_user.id,
-            message.text,
-            f"{converted:.2f} {to_currency}"
-        )
-
-        answer = (
-            f"💱 <b>Конвертация валют</b>\n\n"
-            f"💵 {amount} {from_currency}\n"
-            f"➡️ {converted:.2f} {to_currency}"
-        )
-
-        await message.answer(
-            answer,
-            parse_mode="HTML"
-        )
-
-    except Exception as e:
-
-        print(e)
-
+    except:
         await message.answer(
             "❌ Ошибка.\n\n"
             "Введите данные в формате:\n"
-            "<code>100 USD EUR</code>",
-            parse_mode="HTML"
+            "100 USD EUR"
         )
 
-# =========================
-# ЗАПУСК БОТА
-# =========================
+
+# Запуск
 if __name__ == "__main__":
-
-    print("Бот запущен")
-
-    executor.start_polling(
-        dp,
-        skip_updates=True
-    )
+    print("Бот запущен...")
+    executor.start_polling(dp, skip_updates=True)
