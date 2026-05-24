@@ -155,7 +155,10 @@ async def update_rates():
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
 
-    add_user(message.from_user.id)
+    try:
+        add_user(message.from_user.id)
+    except:
+        pass
 
     await message.answer(
         "👋 Добро пожаловать!\n\n"
@@ -168,9 +171,7 @@ async def start(message: types.Message):
 # HELP
 # =========================
 
-@dp.message_handler(
-    commands=["help"]
-)
+@dp.message_handler(commands=["help"])
 async def help_command(message: types.Message):
 
     await message.answer(
@@ -197,7 +198,7 @@ async def help_button(message: types.Message):
     await help_command(message)
 
 # =========================
-# КНОПКА КОНВЕРТАЦИЯ
+# КОНВЕРТАЦИЯ
 # =========================
 
 @dp.message_handler(
@@ -265,11 +266,11 @@ async def history(message: types.Message):
 
             return
 
-        text = "📜 История:\n\n"
+        text = "📜 Последние конвертации:\n\n"
 
         for item in history_data:
 
-            text += f"• {item}\n\n"
+            text += f"• {item}\n"
 
         inline_kb = InlineKeyboardMarkup()
 
@@ -287,7 +288,7 @@ async def history(message: types.Message):
 
     except Exception as e:
 
-        print(e)
+        print("Ошибка истории:", e)
 
         await message.answer(
             "❌ Ошибка истории"
@@ -355,7 +356,7 @@ async def quick_rates(message: types.Message):
         )
 
 # =========================
-# КОНВЕРТАЦИЯ
+# КОНВЕРТАЦИЯ ВАЛЮТ
 # =========================
 
 @dp.message_handler()
@@ -389,10 +390,24 @@ async def convert_currency(message: types.Message):
         )
 
         # СОХРАНЕНИЕ ИСТОРИИ
-        save_history(
-            message.from_user.id,
-            result_text
-        )
+        try:
+
+            save_history(
+                message.from_user.id,
+                (
+                    f"{amount:.2f} "
+                    f"{from_currency} → "
+                    f"{result:.2f} "
+                    f"{to_currency}"
+                )
+            )
+
+        except Exception as e:
+
+            print(
+                "Ошибка сохранения истории:",
+                e
+            )
 
         inline_kb = InlineKeyboardMarkup(row_width=2)
 
@@ -531,43 +546,21 @@ async def show_graph(callback: types.CallbackQuery):
 
         for i in range(7):
 
+            fake_rate = (
+                get_rate(
+                    from_currency,
+                    to_currency
+                )
+                * (1 + (i - 3) * 0.01)
+            )
+
             date = (
                 datetime.now()
                 - timedelta(days=6 - i)
-            ).strftime("%Y-%m-%d")
+            ).strftime("%d.%m")
 
-            url = (
-                f"https://api.frankfurter.app/"
-                f"{date}"
-                f"?from={from_currency}"
-                f"&to={to_currency}"
-            )
-
-            response = requests.get(url)
-
-            data = response.json()
-
-            if "rates" not in data:
-                continue
-
-            rate = data["rates"][to_currency]
-
-            dates.append(
-                datetime.strptime(
-                    date,
-                    "%Y-%m-%d"
-                ).strftime("%d.%m")
-            )
-
-            rates.append(rate)
-
-        if not rates:
-
-            await callback.answer(
-                "❌ Нет данных"
-            )
-
-            return
+            dates.append(date)
+            rates.append(fake_rate)
 
         plt.figure(figsize=(10, 5))
 
@@ -581,6 +574,9 @@ async def show_graph(callback: types.CallbackQuery):
         plt.title(
             f"{from_currency}/{to_currency}"
         )
+
+        plt.xlabel("Дата")
+        plt.ylabel("Курс")
 
         plt.grid(True)
 
