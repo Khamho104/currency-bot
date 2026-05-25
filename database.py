@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS history (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS rates_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pair TEXT,
+    rate REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
 conn.commit()
 
 # =========================
@@ -99,3 +108,42 @@ def clear_history(user_id):
     )
 
     conn.commit()
+
+# =========================
+# СОХРАНИТЬ КУРС
+# =========================
+
+def save_rate(pair, rate):
+
+    cursor.execute(
+        """
+        INSERT INTO rates_history (pair, rate)
+        VALUES (?, ?)
+        """,
+        (pair, rate)
+    )
+
+    conn.commit()
+
+# =========================
+# ПОЛУЧИТЬ ИСТОРИЮ КУРСА
+# =========================
+
+def get_rate_history(pair):
+
+    cursor.execute(
+        """
+        SELECT rate, created_at
+        FROM rates_history
+        WHERE pair = ?
+        ORDER BY id DESC
+        LIMIT 20
+        """,
+        (pair,)
+    )
+
+    rows = cursor.fetchall()
+
+    rows.reverse()
+
+    return rows
