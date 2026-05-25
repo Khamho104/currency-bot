@@ -88,24 +88,35 @@ def get_rate(from_currency, to_currency):
     pair = f"{from_currency}_{to_currency}"
 
     if pair in cached_rates:
+
         return cached_rates[pair]
 
-    url = (
-        "https://api.exchangerate.host/convert"
-        f"?from={from_currency}"
-        f"&to={to_currency}"
-    )
+    try:
 
-    response = requests.get(url)
+        url = (
+            f"https://open.er-api.com/v6/latest/"
+            f"{from_currency}"
+        )
 
-    data = response.json()
+        response = requests.get(url)
 
-    rate = data.get("result")
+        data = response.json()
 
-    if rate:
+        if data["result"] != "success":
+
+            return None
+
+        rate = data["rates"][to_currency]
+
         cached_rates[pair] = rate
 
-    return rate
+        return rate
+
+    except Exception as e:
+
+        print("Ошибка курса:", e)
+
+        return None
 
 # =========================
 # ОБНОВЛЕНИЕ КУРСОВ
