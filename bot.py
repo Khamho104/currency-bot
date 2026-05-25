@@ -141,7 +141,13 @@ async def update_rates():
                     to_currency
                 )
 
-                if rate:
+                if not rate:
+                    continue
+
+                old_rate = cached_rates.get(pair)
+
+                # сохраняем только новый курс
+                if old_rate != rate:
 
                     cached_rates[pair] = rate
 
@@ -158,6 +164,7 @@ async def update_rates():
                     e
                 )
 
+        # обновление каждые 5 минут
         await asyncio.sleep(300)
 
 # =========================
