@@ -6,6 +6,10 @@ Telegram-бот для конвертации валют.
 
 ![Презентация](./docs/presentation.png)
 
+## 🎥 Видео-презентация
+
+[▶ Скачать видео](./docs/presentation.mp4)
+
 ## 🤖 Бот
 
 [Открыть бота](https://t.me/ConverterMoneys_bot)
