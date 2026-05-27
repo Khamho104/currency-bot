@@ -8,9 +8,9 @@ Telegram-бот для конвертации валют.
 
 ## 🎥 Видео-презентация
 
-[▶ Смотреть на Google Drive](https://drive.google.com/file/d/1E9hjdEYWG_XoF6nCUqL-Ra64USSNQkPJ/view?usp=drive_link)
+[▶ Смотреть на Google Drive](https://drive.google.com/file/d/1fUswcKDeH4i8l753tSe6uQUnBjriL_T2/view?usp=drive_link)
 
-[▶ Скачать видео](./docs/video.mp4)
+[▶ Скачать видео](./docs/video-presentation.mp4)
 
 ## 🤖 Бот
 
