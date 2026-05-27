@@ -10,7 +10,7 @@ Telegram-бот для конвертации валют.
 
 [▶ Смотреть на Google Drive](https://drive.google.com/file/d/1E9hjdEYWG_XoF6nCUqL-Ra64USSNQkPJ/view?usp=drive_link)
 
-[▶ Скачать видео](./docs/presentation.mp4)
+[▶ Скачать видео](./docs/video.mp4)
 
 ## 🤖 Бот
 
